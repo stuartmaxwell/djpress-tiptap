@@ -1,9 +1,9 @@
-<div class="dj-tiptap-browser-head">
+<div class="djpress-tiptap-browser-head">
   <h2>Media library</h2>
   <button type="button" data-close aria-label="Close">&times;</button>
 </div>
 {% if page.object_list %}
-  <div class="dj-tiptap-browser-grid">
+  <div class="djpress-tiptap-browser-grid">
     {% for attachment in page %}
       <button
         type="button"
@@ -16,9 +16,9 @@
     {% endfor %}
   </div>
 {% else %}
-  <p class="dj-tiptap-browser-empty">No images yet. Upload one with the toolbar button.</p>
+  <p class="djpress-tiptap-browser-empty">No images yet. Upload one with the toolbar button.</p>
 {% endif %}
-<div class="dj-tiptap-browser-nav">
+<div class="djpress-tiptap-browser-nav">
   {% if page.has_previous %}
     <button type="button" data-fetch="?page={{ page.previous_page_number }}">&larr; Newer</button>
   {% endif %}

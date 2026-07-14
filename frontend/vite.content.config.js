@@ -6,7 +6,7 @@ import { resolve } from "path";
 // don't ship the whole editor. Run via `pnpm build` (see package.json).
 export default defineConfig({
   build: {
-    outDir: resolve(__dirname, "../src/dj_tiptap/static/dj_tiptap"),
+    outDir: resolve(__dirname, "../src/djpress_tiptap/static/djpress_tiptap"),
     // The editor build owns cleaning this directory and runs first
     emptyOutDir: false,
     lib: {

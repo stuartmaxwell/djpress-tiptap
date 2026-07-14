@@ -1,7 +1,7 @@
-"""dj-tiptap configuration.
+"""djpress-tiptap configuration.
 
 Every setting is optional in the host project: these functions return the
-project's DJ_TIPTAP_* value when set, or the package default otherwise.
+project's DJPRESS_TIPTAP_* value when set, or the package default otherwise.
 
 Functions rather than module-level constants so the settings are read lazily
 (at request/render time): override_settings keeps working in tests, and the
@@ -39,14 +39,18 @@ DEFAULT_MAX_UPLOAD_SIZE_MB = 10
 # Videos get their own, larger cap: even a short clip dwarfs any photo.
 DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB = 100
 
+# DJ Press Tiptap views to upload media
+DJPRESS_TIPTAP_UPLOAD_URL = "djpress_tiptap:media_upload"
+DJPRESS_TIPTAP_BROWSE_URL = "djpress_tiptap:media_browse"
+
 
 def max_upload_size_mb() -> int:
     """Maximum attachment upload size in megabytes.
 
     Returns:
-        The maximum upload size in megabytes, as configured via DJ_TIPTAP_MAX_UPLOAD_SIZE_MB.
+        The maximum upload size in megabytes, as configured via DJPRESS_TIPTAP_MAX_UPLOAD_SIZE_MB.
     """
-    return getattr(settings, "DJ_TIPTAP_MAX_UPLOAD_SIZE_MB", DEFAULT_MAX_UPLOAD_SIZE_MB)
+    return getattr(settings, "DJPRESS_TIPTAP_MAX_UPLOAD_SIZE_MB", DEFAULT_MAX_UPLOAD_SIZE_MB)
 
 
 def max_video_upload_size_mb() -> int:
@@ -54,33 +58,33 @@ def max_video_upload_size_mb() -> int:
 
     Returns:
         The maximum video upload size in megabytes, as configured via
-        DJ_TIPTAP_MAX_VIDEO_UPLOAD_SIZE_MB.
+        DJPRESS_TIPTAP_MAX_VIDEO_UPLOAD_SIZE_MB.
     """
-    return getattr(settings, "DJ_TIPTAP_MAX_VIDEO_UPLOAD_SIZE_MB", DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB)
+    return getattr(settings, "DJPRESS_TIPTAP_MAX_VIDEO_UPLOAD_SIZE_MB", DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB)
 
 
 def allowed_image_types() -> dict[str, str]:
     """Mapping of accepted Pillow image formats to their mime types.
 
     Returns:
-        The allowed image types, as configured via DJ_TIPTAP_ALLOWED_IMAGE_TYPES.
+        The allowed image types, as configured via DJPRESS_TIPTAP_ALLOWED_IMAGE_TYPES.
     """
-    return getattr(settings, "DJ_TIPTAP_ALLOWED_IMAGE_TYPES", DEFAULT_ALLOWED_IMAGE_TYPES)
+    return getattr(settings, "DJPRESS_TIPTAP_ALLOWED_IMAGE_TYPES", DEFAULT_ALLOWED_IMAGE_TYPES)
 
 
 def allowed_video_types() -> set[str]:
     """Set of accepted video mime types.
 
     Returns:
-        The allowed video mime types, as configured via DJ_TIPTAP_ALLOWED_VIDEO_TYPES.
+        The allowed video mime types, as configured via DJPRESS_TIPTAP_ALLOWED_VIDEO_TYPES.
     """
-    return getattr(settings, "DJ_TIPTAP_ALLOWED_VIDEO_TYPES", DEFAULT_ALLOWED_VIDEO_TYPES)
+    return getattr(settings, "DJPRESS_TIPTAP_ALLOWED_VIDEO_TYPES", DEFAULT_ALLOWED_VIDEO_TYPES)
 
 
 def upload_url(override: str | None = None) -> str:
     """URL of the attachment upload endpoint.
 
-    Priority: explicit widget argument, then DJ_TIPTAP_UPLOAD_URL setting.
+    Priority: explicit widget argument, then DJPRESS_TIPTAP_UPLOAD_URL setting.
     Values may be a URL name or a path (LOGIN_URL semantics); the view just
     has to keep the JSON contract:
     POST multipart {file} -> 201 {url, alt?, ...} or 4xx {error}.
@@ -92,9 +96,9 @@ def upload_url(override: str | None = None) -> str:
         override: Optional URL override for the upload endpoint.
 
     Returns:
-        The upload URL, as configured via DJ_TIPTAP_UPLOAD_URL, or "" if unset.
+        The upload URL, as configured via DJPRESS_TIPTAP_UPLOAD_URL, or "" if unset.
     """
-    url = override or getattr(settings, "DJ_TIPTAP_UPLOAD_URL", None)
+    url = override or getattr(settings, "DJPRESS_TIPTAP_UPLOAD_URL", DJPRESS_TIPTAP_UPLOAD_URL)
     return resolve_url(url) if url else ""
 
 
@@ -111,7 +115,7 @@ def browse_url(override: str | None = None) -> str:
         override: Optional URL override for the browse endpoint.
 
     Returns:
-        The browse URL, as configured via DJ_TIPTAP_BROWSE_URL, or "" if unset.
+        The browse URL, as configured via DJPRESS_TIPTAP_BROWSE_URL, or "" if unset.
     """
-    url = override or getattr(settings, "DJ_TIPTAP_BROWSE_URL", None)
+    url = override or getattr(settings, "DJPRESS_TIPTAP_BROWSE_URL", DJPRESS_TIPTAP_BROWSE_URL)
     return resolve_url(url) if url else ""

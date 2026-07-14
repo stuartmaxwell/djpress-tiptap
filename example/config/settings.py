@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "dj_tiptap",
+    "djpress",
+    "djpress_tiptap",
     "website",
 ]
 
@@ -124,5 +125,3 @@ MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 """DJ Tiptap configuration."""
-DJ_TIPTAP_UPLOAD_URL = "website:attachment_upload"
-DJ_TIPTAP_BROWSE_URL = "website:attachment_browse"

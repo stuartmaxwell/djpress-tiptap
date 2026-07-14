@@ -122,7 +122,7 @@ export async function browseImages(editor, config) {
   // A fresh dialog per open: nothing to cache, no stale state, and multiple
   // editors on one page can't interfere with each other.
   const dialog = document.createElement("dialog");
-  dialog.className = "dj-tiptap-browser";
+  dialog.className = "djpress-tiptap-browser";
   document.body.append(dialog);
   dialog.addEventListener("close", () => dialog.remove());
 

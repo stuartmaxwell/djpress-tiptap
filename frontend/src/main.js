@@ -3,4 +3,4 @@
 import DjTiptapEditor from "./element.js";
 import "./editor.css";
 
-customElements.define("dj-tiptap-editor", DjTiptapEditor);
+customElements.define("djpress-tiptap-editor", DjTiptapEditor);

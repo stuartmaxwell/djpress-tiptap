@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 
 import pytest
+from django.test import Client
 from playwright.sync_api import expect
 
 # Playwright's sync API drives an asyncio loop in this thread; Django's ORM
@@ -36,6 +37,22 @@ def media_root(settings, tmp_path):
 def browser_context_args(browser_context_args, live_server):
     """Point relative page.goto() URLs at the live Django server."""
     return {**browser_context_args, "base_url": live_server.url}
+
+
+@pytest.fixture(autouse=True)
+def authenticated_browser(context, live_server, django_user_model):
+    """Log the browser in before each test: the example site's views all require login.
+
+    force_login() writes a session row into the test database the live server
+    reads from; handing its cookie to Playwright's context authenticates every
+    page the test opens.
+    """
+    user = django_user_model.objects.create_user(username="author", password="secret")
+    client = Client()
+    client.force_login(user)
+    context.add_cookies(
+        [{"name": "sessionid", "value": client.cookies["sessionid"].value, "url": live_server.url}]
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -185,10 +202,10 @@ def test_upload_button_uploads_the_chosen_file_and_inserts_the_served_image(page
 
     upload_fixture(page, "pixel.png")
 
-    # src points at the Django-served attachment, alt falls back to the filename stem
+    # src points at the Django-served attachment; the server sets alt to the filename
     img = page.locator(".tiptap img")
-    expect(img).to_have_attribute("src", re.compile(r"/media/attachments/\d{4}/\d{2}/pixel.*\.png"))
-    expect(img).to_have_attribute("alt", "pixel")
+    expect(img).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/pixel.*\.png"))
+    expect(img).to_have_attribute("alt", "pixel.png")
 
 
 # Real drag-and-drop needs OS-level input, so the drop/paste tests dispatch
@@ -215,8 +232,8 @@ def test_dropping_an_image_file_uploads_it_and_inserts_it(page):
     )
 
     img = page.locator(".tiptap img")
-    expect(img).to_have_attribute("src", re.compile(r"/media/attachments/\d{4}/\d{2}/dropped.*\.png"))
-    expect(img).to_have_attribute("alt", "dropped")
+    expect(img).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/dropped.*\.png"))
+    expect(img).to_have_attribute("alt", "dropped.png")
 
 
 def test_pasting_an_image_file_uploads_it_and_inserts_it(page):
@@ -236,8 +253,8 @@ def test_pasting_an_image_file_uploads_it_and_inserts_it(page):
     )
 
     img = page.locator(".tiptap img")
-    expect(img).to_have_attribute("src", re.compile(r"/media/attachments/\d{4}/\d{2}/pasted.*\.png"))
-    expect(img).to_have_attribute("alt", "pasted")
+    expect(img).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/pasted.*\.png"))
+    expect(img).to_have_attribute("alt", "pasted.png")
 
 
 def test_video_command_inserts_a_video_from_the_prompted_url(page):
@@ -269,9 +286,9 @@ def test_video_upload_button_uploads_the_chosen_file_and_inserts_a_video_element
     chooser_info.value.set_files(FIXTURES / "clip.mp4")
 
     video = page.locator(".tiptap video")
-    expect(video).to_have_attribute("src", re.compile(r"/media/attachments/\d{4}/\d{2}/clip.*\.mp4"))
-    # The alt-text fallback (filename stem) lands on title: <video> has no alt
-    expect(video).to_have_attribute("title", "clip")
+    expect(video).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/clip.*\.mp4"))
+    # The server-side alt text (the filename) lands on title: <video> has no alt
+    expect(video).to_have_attribute("title", "clip.mp4")
 
 
 def test_dropping_a_video_file_uploads_it_and_inserts_a_video_element(page):
@@ -296,7 +313,7 @@ def test_dropping_a_video_file_uploads_it_and_inserts_a_video_element(page):
     )
 
     video = page.locator(".tiptap video")
-    expect(video).to_have_attribute("src", re.compile(r"/media/attachments/\d{4}/\d{2}/dropped.*\.mp4"))
+    expect(video).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/dropped.*\.mp4"))
 
 
 def test_videos_survive_the_round_trip_to_the_public_post_page(page):
@@ -321,7 +338,7 @@ def test_videos_survive_the_round_trip_to_the_public_post_page(page):
     video = page.locator(".post-content video")
     expect(video).to_be_visible()
     expect(video).to_have_attribute("controls", "controls")
-    expect(video).to_have_attribute("src", re.compile(r"/media/attachments/\d{4}/\d{2}/clip.*\.mp4"))
+    expect(video).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/clip.*\.mp4"))
 
 
 def test_dragging_a_corner_handle_resizes_the_image_and_stores_width_height(page):
@@ -369,9 +386,9 @@ def test_media_library_dialog_inserts_a_previously_uploaded_image(page):
 
     expect(page.locator(".tiptap img")).to_have_attribute(
         "src",
-        re.compile(r"/media/attachments/\d{4}/\d{2}/pixel.*\.png"),
+        re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/pixel.*\.png"),
     )
-    expect(page.locator(".tiptap img")).to_have_attribute("alt", "pixel")
+    expect(page.locator(".tiptap img")).to_have_attribute("alt", "pixel.png")
     # Closing removes the dialog element entirely (fresh one per open)
     expect(page.locator("dialog.djpress-tiptap-browser")).to_have_count(0)
 

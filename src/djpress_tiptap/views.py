@@ -150,18 +150,19 @@ class MediaUploadView(View):
             content_type: The content type of the upload.
 
         Returns:
-            A JsonResponse with the attachment's ID and URL.
+            A JsonResponse with the attachment's URL, alt text, and content type.
         """
         upload.seek(0)  # rewind after detection, or the stored file is truncated
 
         media_type = next((mt for mt, _ in models.Media.MEDIA_TYPE_CHOICES if mt in content_type.lower()), "other")
 
+        user = self.request.user
         attachment = models.Media.objects.create(
             title=upload.name,
             file=upload,
             media_type=media_type,
             alt_text=upload.name,
-            uploaded_by=self.request.user or None,
+            uploaded_by=user if user.is_authenticated else None,
         )
 
         return JsonResponse(

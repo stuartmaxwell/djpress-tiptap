@@ -19,7 +19,6 @@ ignore = [
 ]
 
 [lint.per-file-ignores]
-# "test*" = ["ALL"]
 "example/*" = ["ALL"]
 "**/migrations/*" = ["ALL"]
 "settings_testing.py" = ["ALL"]
@@ -27,7 +26,8 @@ ignore = [
 
 [lint.extend-per-file-ignores]
 "test*" = ["ANN001", "ANN002", "ANN202", "ANN003", "ANN201", "ANN206", "D100", "D101", "D102", "D103", "S101", "S106", "PLC0415", "PLR2004", "T201", "PT011", "SLF001"]
-"src/dj_tiptap/widgets.py" = ["ANN001", "ANN201", "ANN204", "ARG002", "D106"]
+"src/djpress_tiptap/widgets.py" = ["ANN001", "ANN201", "ANN204", "ARG002", "D106"]
+"src/djpress_tiptap/views.py" = ["ANN001", "ANN201", "D102"]
 
 [lint.pydocstyle]
 convention = "google" # Accepts: "google", "numpy", or "pep257".

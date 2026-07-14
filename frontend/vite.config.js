@@ -4,7 +4,7 @@ import { resolve } from "path";
 export default defineConfig({
   build: {
     // Compile directly into the Django static directory
-    outDir: resolve(__dirname, "../src/dj_tiptap/static/dj_tiptap"),
+    outDir: resolve(__dirname, "../src/djpress_tiptap/static/djpress_tiptap"),
     // Clear out the target folder before building fresh assets
     emptyOutDir: true,
     // Build as a standalone library configuration

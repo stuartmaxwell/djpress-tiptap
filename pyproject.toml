@@ -1,23 +1,25 @@
 [project]
-name = "dj-tiptap"
-version = "0.1.7"
-description = "Rich text editor for Django based on Tiptap."
+name = "djpress-tiptap"
+version = "0.2.0"
+description = "Rich text editor for DJ Press based on Tiptap."
 authors = [
     {name = "Stuart Maxwell", email = "stuart@amanzi.nz"},
 ]
 requires-python = ">=3.14"
 readme = "README.md"
 license = {text = "MIT"}
-dependencies = ["django~=6.0"]
+dependencies = [
+    "djpress>=0.30.0",
+    "pillow~=12.3",
+    "puremagic~=2.2",
+]
 
 [dependency-groups]
 dev = [
     "pytest~=9.1",
     "playwright~=1.61",
     "pytest-django~=4.12",
-    "pillow~=12.3",
     "pytest-playwright>=0.8.0",
-    "puremagic~=2.2",
 ]
 
 [build-system]

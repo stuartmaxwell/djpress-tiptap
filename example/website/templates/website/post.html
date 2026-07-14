@@ -4,8 +4,8 @@
 {% block content %}
   {% if post %}
     <!-- Optional: load content CSS and JS to style the output. This enables syntax highlighting and basic styles. -->
-    <link rel="stylesheet" href="{% static 'dj_tiptap/content.css' %}">
-    <script src="{% static 'dj_tiptap/content.bundle.js' %}" defer></script>
+    <link rel="stylesheet" href="{% static 'djpress_tiptap/content.css' %}">
+    <script src="{% static 'djpress_tiptap/content.bundle.js' %}" defer></script>
 
     <h1>{{ post.title }}</h1>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px">

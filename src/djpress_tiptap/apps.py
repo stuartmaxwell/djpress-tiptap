@@ -6,5 +6,5 @@ from django.apps import AppConfig
 class DjTiptapBaseConfig(AppConfig):
     """App configuration for DJ Tiptap."""
 
-    name = "dj_tiptap"
-    verbose_name = "DJ Tiptap"
+    name = "djpress_tiptap"
+    verbose_name = "DJ Press Tiptap"

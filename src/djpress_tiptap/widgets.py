@@ -2,23 +2,23 @@
 
 from django import forms
 
-from . import conf
+from djpress_tiptap import conf
 
 
 class DjTiptapWidget(forms.Widget):
     """Tiptap rich-text editor rendered as a form-associated custom element.
 
-    The <dj-tiptap-editor> element registers itself as a form control via
+    The <djpress-tiptap-editor> element registers itself as a form control via
     ElementInternals, so it submits its HTML under the field name directly —
     no hidden input needed.
 
     The attachment endpoints are configurable per instance
     (DjTiptapWidget(upload_url=..., browse_url=...)), per project
-    (DJ_TIPTAP_UPLOAD_URL / DJ_TIPTAP_BROWSE_URL settings), or fall back to
+    (DJPRESS_TIPTAP_UPLOAD_URL / DJPRESS_TIPTAP_BROWSE_URL settings), or fall back to
     the built-in views. Values may be URL names or paths, like LOGIN_URL.
     """
 
-    template_name = "dj_tiptap/widgets/dj_tiptap_editor.html"
+    template_name = "djpress_tiptap/widgets/djpress_tiptap_editor.html"
 
     def __init__(self, attrs=None, upload_url=None, browse_url=None):
         """Store per-instance endpoint overrides; None means "use setting or default"."""
@@ -45,5 +45,5 @@ class DjTiptapWidget(forms.Widget):
         return context
 
     class Media:
-        js = ["dj_tiptap/djtiptap.bundle.js"]
-        css = {"all": ["dj_tiptap/djtiptap.css"]}
+        js = ["djpress_tiptap/djtiptap.bundle.js"]
+        css = {"all": ["djpress_tiptap/djtiptap.css"]}

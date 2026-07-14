@@ -1,4 +1,4 @@
-// <dj-tiptap-editor> — a form-associated custom element that hosts Tiptap.
+// <djpress-tiptap-editor> — a form-associated custom element that hosts Tiptap.
 //
 // `static formAssociated = true` plus ElementInternals.setFormValue() make the
 // browser treat this element as a native form control: its value is submitted
@@ -124,7 +124,7 @@ export default class DjTiptapEditor extends HTMLElement {
     });
 
     const toolbar = this.parentElement?.querySelector(
-      "[data-dj-tiptap-toolbar]",
+      "[data-djpress-tiptap-toolbar]",
     );
     if (toolbar) {
       initToolbar(toolbar, this.#editor, config);

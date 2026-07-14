@@ -1,5 +1,8 @@
+"""Website app config."""
+
 from django.apps import AppConfig
 
 
 class WebsiteConfig(AppConfig):
-    name = 'website'
+    """Website app config."""
+    name = "website"

@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 
 import pytest
+from django.test import Client
 from playwright.sync_api import expect
 
 # Playwright's sync API drives an asyncio loop in this thread; Django's ORM
@@ -39,6 +40,22 @@ def browser_context_args(browser_context_args, live_server):
 
 
 @pytest.fixture(autouse=True)
+def authenticated_browser(context, live_server, django_user_model):
+    """Log the browser in before each test: the example site's views all require login.
+
+    force_login() writes a session row into the test database the live server
+    reads from; handing its cookie to Playwright's context authenticates every
+    page the test opens.
+    """
+    user = django_user_model.objects.create_user(username="author", password="secret")
+    client = Client()
+    client.force_login(user)
+    context.add_cookies(
+        [{"name": "sessionid", "value": client.cookies["sessionid"].value, "url": live_server.url}]
+    )
+
+
+@pytest.fixture(autouse=True)
 def page_errors(page):
     """Collect uncaught page errors in every test — a broken bundle should fail loudly."""
     errors = []
@@ -49,7 +66,7 @@ def page_errors(page):
 
 def editor_html(page):
     """The editor's stored HTML (what the form field will submit)."""
-    return page.evaluate("document.querySelector('dj-tiptap-editor').editor.getHTML()")
+    return page.evaluate("document.querySelector('djpress-tiptap-editor').editor.getHTML()")
 
 
 def upload_fixture(page, filename):
@@ -65,8 +82,8 @@ def upload_fixture(page, filename):
 def test_editor_and_toolbar_mount_on_the_add_post_page(page):
     page.goto("/add/")
 
-    expect(page.locator("dj-tiptap-editor .tiptap")).to_be_visible()
-    expect(page.locator("[data-dj-tiptap-toolbar]")).to_be_visible()
+    expect(page.locator("djpress-tiptap-editor .tiptap")).to_be_visible()
+    expect(page.locator("[data-djpress-tiptap-toolbar]")).to_be_visible()
 
     # Undo is disabled until something has been typed
     expect(page.get_by_role("button", name="Undo")).to_be_disabled()
@@ -87,7 +104,7 @@ def test_editor_and_toolbar_mount_on_the_add_post_page(page):
 def test_toolbar_mark_formats_the_selected_text(page, button, html):
     page.goto("/add/")
 
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.keyboard.type("Hello world")
     page.keyboard.press("ControlOrMeta+a")
 
@@ -117,7 +134,7 @@ def test_toolbar_mark_formats_the_selected_text(page, button, html):
 def test_toolbar_node_formats_the_current_block(page, button, html):
     page.goto("/add/")
 
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.keyboard.type("Hello world")
 
     btn = page.get_by_role("button", name=button, exact=True)
@@ -130,7 +147,7 @@ def test_toolbar_node_formats_the_current_block(page, button, html):
 def test_code_blocks_get_lowlight_syntax_highlighting(page):
     page.goto("/add/")
 
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     # The ``` input rule converts the paragraph into a code block with language js
     page.keyboard.type("```js ")
     page.keyboard.type('const greeting = "hello";')
@@ -148,7 +165,7 @@ def test_published_code_blocks_are_highlighted_on_the_public_post_page(page):
 
     page.goto("/add/")
     page.fill("input[name=title]", title)
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.keyboard.type("```js ")
     page.keyboard.type('const greeting = "hello";')
 
@@ -168,7 +185,7 @@ def test_image_command_inserts_an_image_from_the_prompted_url(page):
     src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
 
     page.goto("/add/")
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
 
     # window.prompt() blocks the page; answer it before triggering it
     page.on("dialog", lambda dialog: dialog.accept(src))
@@ -181,14 +198,14 @@ def test_image_command_inserts_an_image_from_the_prompted_url(page):
 
 def test_upload_button_uploads_the_chosen_file_and_inserts_the_served_image(page):
     page.goto("/add/")
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
 
     upload_fixture(page, "pixel.png")
 
-    # src points at the Django-served attachment, alt falls back to the filename stem
+    # src points at the Django-served attachment; the server sets alt to the filename
     img = page.locator(".tiptap img")
-    expect(img).to_have_attribute("src", re.compile(r"/media/attachments/\d{4}/\d{2}/pixel.*\.png"))
-    expect(img).to_have_attribute("alt", "pixel")
+    expect(img).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/pixel.*\.png"))
+    expect(img).to_have_attribute("alt", "pixel.png")
 
 
 # Real drag-and-drop needs OS-level input, so the drop/paste tests dispatch
@@ -196,7 +213,7 @@ def test_upload_button_uploads_the_chosen_file_and_inserts_the_served_image(page
 def test_dropping_an_image_file_uploads_it_and_inserts_it(page):
     page.goto("/add/")
 
-    surface = page.locator("dj-tiptap-editor .tiptap")
+    surface = page.locator("djpress-tiptap-editor .tiptap")
     box = surface.bounding_box()
     surface.evaluate(
         """(el, { b64, x, y }) => {
@@ -215,15 +232,15 @@ def test_dropping_an_image_file_uploads_it_and_inserts_it(page):
     )
 
     img = page.locator(".tiptap img")
-    expect(img).to_have_attribute("src", re.compile(r"/media/attachments/\d{4}/\d{2}/dropped.*\.png"))
-    expect(img).to_have_attribute("alt", "dropped")
+    expect(img).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/dropped.*\.png"))
+    expect(img).to_have_attribute("alt", "dropped.png")
 
 
 def test_pasting_an_image_file_uploads_it_and_inserts_it(page):
     page.goto("/add/")
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
 
-    page.locator("dj-tiptap-editor .tiptap").evaluate(
+    page.locator("djpress-tiptap-editor .tiptap").evaluate(
         """(el, b64) => {
             const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
             const clipboardData = new DataTransfer();
@@ -236,15 +253,15 @@ def test_pasting_an_image_file_uploads_it_and_inserts_it(page):
     )
 
     img = page.locator(".tiptap img")
-    expect(img).to_have_attribute("src", re.compile(r"/media/attachments/\d{4}/\d{2}/pasted.*\.png"))
-    expect(img).to_have_attribute("alt", "pasted")
+    expect(img).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/pasted.*\.png"))
+    expect(img).to_have_attribute("alt", "pasted.png")
 
 
 def test_video_command_inserts_a_video_from_the_prompted_url(page):
     src = "/media/somewhere/clip.mp4"
 
     page.goto("/add/")
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
 
     # window.prompt() blocks the page; answer it before triggering it
     page.on("dialog", lambda dialog: dialog.accept(src))
@@ -260,7 +277,7 @@ def test_video_command_inserts_a_video_from_the_prompted_url(page):
 
 def test_video_upload_button_uploads_the_chosen_file_and_inserts_a_video_element(page):
     page.goto("/add/")
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
 
     # clip.mp4 is a bare ftyp header — enough for the server's magic-byte
     # check, and the <video> element renders without needing playable media
@@ -269,15 +286,15 @@ def test_video_upload_button_uploads_the_chosen_file_and_inserts_a_video_element
     chooser_info.value.set_files(FIXTURES / "clip.mp4")
 
     video = page.locator(".tiptap video")
-    expect(video).to_have_attribute("src", re.compile(r"/media/attachments/\d{4}/\d{2}/clip.*\.mp4"))
-    # The alt-text fallback (filename stem) lands on title: <video> has no alt
-    expect(video).to_have_attribute("title", "clip")
+    expect(video).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/clip.*\.mp4"))
+    # The server-side alt text (the filename) lands on title: <video> has no alt
+    expect(video).to_have_attribute("title", "clip.mp4")
 
 
 def test_dropping_a_video_file_uploads_it_and_inserts_a_video_element(page):
     page.goto("/add/")
 
-    surface = page.locator("dj-tiptap-editor .tiptap")
+    surface = page.locator("djpress-tiptap-editor .tiptap")
     box = surface.bounding_box()
     surface.evaluate(
         """(el, { b64, x, y }) => {
@@ -296,7 +313,7 @@ def test_dropping_a_video_file_uploads_it_and_inserts_a_video_element(page):
     )
 
     video = page.locator(".tiptap video")
-    expect(video).to_have_attribute("src", re.compile(r"/media/attachments/\d{4}/\d{2}/dropped.*\.mp4"))
+    expect(video).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/dropped.*\.mp4"))
 
 
 def test_videos_survive_the_round_trip_to_the_public_post_page(page):
@@ -304,7 +321,7 @@ def test_videos_survive_the_round_trip_to_the_public_post_page(page):
 
     page.goto("/add/")
     page.fill("input[name=title]", title)
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     with page.expect_file_chooser() as chooser_info:
         page.get_by_role("button", name="UploadVideo", exact=True).click()
     chooser_info.value.set_files(FIXTURES / "clip.mp4")
@@ -321,12 +338,12 @@ def test_videos_survive_the_round_trip_to_the_public_post_page(page):
     video = page.locator(".post-content video")
     expect(video).to_be_visible()
     expect(video).to_have_attribute("controls", "controls")
-    expect(video).to_have_attribute("src", re.compile(r"/media/attachments/\d{4}/\d{2}/clip.*\.mp4"))
+    expect(video).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/clip.*\.mp4"))
 
 
 def test_dragging_a_corner_handle_resizes_the_image_and_stores_width_height(page):
     page.goto("/add/")
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
 
     # Insert a 300x200 image via the upload button
     upload_fixture(page, "photo.png")
@@ -352,7 +369,7 @@ def test_dragging_a_corner_handle_resizes_the_image_and_stores_width_height(page
 
 def test_media_library_dialog_inserts_a_previously_uploaded_image(page):
     page.goto("/add/")
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
 
     # Seed the library through the upload button
     upload_fixture(page, "pixel.png")
@@ -360,32 +377,32 @@ def test_media_library_dialog_inserts_a_previously_uploaded_image(page):
 
     # On a fresh form, insert the same image from the library instead
     page.goto("/add/")
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.get_by_role("button", name="BrowseImages", exact=True).click()
 
-    dialog = page.locator("dialog.dj-tiptap-browser")
+    dialog = page.locator("dialog.djpress-tiptap-browser")
     expect(dialog.locator("h2")).to_have_text("Media library")
     dialog.locator("[data-image-url]").first.click()
 
     expect(page.locator(".tiptap img")).to_have_attribute(
         "src",
-        re.compile(r"/media/attachments/\d{4}/\d{2}/pixel.*\.png"),
+        re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/pixel.*\.png"),
     )
-    expect(page.locator(".tiptap img")).to_have_attribute("alt", "pixel")
+    expect(page.locator(".tiptap img")).to_have_attribute("alt", "pixel.png")
     # Closing removes the dialog element entirely (fresh one per open)
-    expect(page.locator("dialog.dj-tiptap-browser")).to_have_count(0)
+    expect(page.locator("dialog.djpress-tiptap-browser")).to_have_count(0)
 
 
 def test_media_library_dialog_closes_without_inserting_anything(page):
     page.goto("/add/")
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.get_by_role("button", name="BrowseImages", exact=True).click()
 
-    dialog = page.locator("dialog.dj-tiptap-browser")
+    dialog = page.locator("dialog.djpress-tiptap-browser")
     expect(dialog).to_be_visible()
     dialog.get_by_role("button", name="Close").click()
 
-    expect(page.locator("dialog.dj-tiptap-browser")).to_have_count(0)
+    expect(page.locator("dialog.djpress-tiptap-browser")).to_have_count(0)
     expect(page.locator(".tiptap img")).to_have_count(0)
 
 
@@ -396,7 +413,7 @@ def test_insert_table_creates_a_3x3_grid_and_enables_the_table_commands(page):
     table_group = page.locator("[data-context-group]")
     expect(table_group).to_be_hidden()
 
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.get_by_role("button", name="InsertTable", exact=True).click()
 
     expect(page.locator(".tiptap table")).to_be_visible()
@@ -411,7 +428,7 @@ def test_insert_table_creates_a_3x3_grid_and_enables_the_table_commands(page):
 
 def test_table_rows_and_columns_can_be_added_and_removed(page):
     page.goto("/add/")
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.get_by_role("button", name="InsertTable", exact=True).click()
 
     page.get_by_role("button", name="AddRowAfter", exact=True).click()
@@ -430,7 +447,7 @@ def test_table_rows_and_columns_can_be_added_and_removed(page):
 
 def test_table_columns_can_be_resized_by_dragging_and_the_width_persists(page):
     page.goto("/add/")
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.get_by_role("button", name="InsertTable", exact=True).click()
 
     # Drag the right border of the first header cell 60px to the right
@@ -453,7 +470,7 @@ def test_tables_survive_the_round_trip_to_the_public_post_page(page):
 
     page.goto("/add/")
     page.fill("input[name=title]", title)
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.get_by_role("button", name="InsertTable", exact=True).click()
     page.keyboard.type("Header cell")  # cursor is in the first header cell
 
@@ -473,7 +490,7 @@ def test_empty_editor_shows_a_placeholder_that_never_reaches_the_stored_html(pag
     placeholder = page.locator(".tiptap p.is-editor-empty")
     expect(placeholder).to_have_attribute("data-placeholder", "Write something…")
 
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.keyboard.type("Hello")
     expect(placeholder).to_have_count(0)
 
@@ -491,12 +508,12 @@ def test_editor_and_public_page_compute_identical_content_typography(page):
     page.evaluate(
         """() => {
             document
-                .querySelector("dj-tiptap-editor")
+                .querySelector("djpress-tiptap-editor")
                 .editor.commands.setContent("<blockquote><p>Wisdom</p></blockquote><p>Inline <code>chip</code> text</p>");
         }"""  # noqa: E501
     )
     # setContent doesn't count as an update; one real keystroke syncs the form value
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.keyboard.press("End")
     page.keyboard.type(".")
 
@@ -519,7 +536,7 @@ def test_editor_and_public_page_compute_identical_content_typography(page):
 def test_typography_extension_smartens_punctuation_as_you_type(page):
     page.goto("/add/")
 
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.keyboard.type('"Smart" -- yes... 1/2 (c) ->')
 
     assert editor_html(page) == "<p>“Smart” — yes… ½ © →</p>"
@@ -531,7 +548,7 @@ def test_undo_becomes_available_once_something_is_typed(page):
     undo = page.get_by_role("button", name="Undo")
     expect(undo).to_be_disabled()
 
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.keyboard.type("Hello")
     expect(undo).to_be_enabled()
 
@@ -544,7 +561,7 @@ def test_form_submits_the_editors_html_and_round_trips_it(page):
 
     page.goto("/add/")
     page.fill("input[name=title]", title)
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.keyboard.type("Round trip works")
 
     page.click("input[type=submit]")
@@ -559,7 +576,7 @@ def test_form_submits_the_editors_html_and_round_trips_it(page):
 def test_read_more_button_inserts_a_marker_node(page):
     page.goto("/add/")
 
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.keyboard.type("Intro")
     page.get_by_role("button", name="ReadMore", exact=True).click()
     page.keyboard.type("Rest of the post")
@@ -578,7 +595,7 @@ def test_read_more_marker_round_trips_as_a_real_html_comment(page):
 
     page.goto("/add/")
     page.fill("input[name=title]", title)
-    page.locator("dj-tiptap-editor .tiptap").click()
+    page.locator("djpress-tiptap-editor .tiptap").click()
     page.keyboard.type("Intro")
     page.get_by_role("button", name="ReadMore", exact=True).click()
     page.keyboard.type("Rest of the post")

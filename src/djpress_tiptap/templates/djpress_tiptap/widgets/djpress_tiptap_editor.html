@@ -1,29 +1,29 @@
-<div class="dj-tiptap-widget">
-  <div data-dj-tiptap-toolbar hidden>
-    <div class="dj-tiptap-group" role="group" aria-label="History">
+<div class="djpress-tiptap-widget">
+  <div data-djpress-tiptap-toolbar hidden>
+    <div class="djpress-tiptap-group" role="group" aria-label="History">
       <button type="button" data-command="undo" data-enable="undo" data-icon="undo" aria-label="Undo" title="Undo (Ctrl+Z)">↶</button>
       <button type="button" data-command="redo" data-enable="redo" data-icon="redo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)">↷</button>
     </div>
-    <div class="dj-tiptap-group" role="group" aria-label="Block type">
+    <div class="djpress-tiptap-group" role="group" aria-label="Block type">
       <button type="button" data-command="setParagraph" data-active="paragraph" data-icon="paragraph" aria-label="Paragraph" title="Paragraph">¶</button>
       <button type="button" data-command="toggleHeading" data-args='{"level": 1}' data-active="heading" data-icon="heading-1" aria-label="H1" title="Heading 1">H1</button>
       <button type="button" data-command="toggleHeading" data-args='{"level": 2}' data-active="heading" data-icon="heading-2" aria-label="H2" title="Heading 2">H2</button>
       <button type="button" data-command="toggleHeading" data-args='{"level": 3}' data-active="heading" data-icon="heading-3" aria-label="H3" title="Heading 3">H3</button>
     </div>
-    <div class="dj-tiptap-group" role="group" aria-label="Formatting">
+    <div class="djpress-tiptap-group" role="group" aria-label="Formatting">
       <button type="button" data-command="toggleBold" data-active="bold" data-icon="bold" aria-label="Bold" title="Bold (Ctrl+B)">B</button>
       <button type="button" data-command="toggleItalic" data-active="italic" data-icon="italic" aria-label="Italic" title="Italic (Ctrl+I)">I</button>
       <button type="button" data-command="toggleStrike" data-active="strike" data-icon="strikethrough" aria-label="Strike" title="Strikethrough">S</button>
       <button type="button" data-command="toggleUnderline" data-active="underline" data-icon="underline" aria-label="Underline" title="Underline (Ctrl+U)">U</button>
       <button type="button" data-command="toggleCode" data-active="code" data-icon="code" aria-label="Code" title="Inline code">&lt;/&gt;</button>
     </div>
-    <div class="dj-tiptap-group" role="group" aria-label="Structure">
+    <div class="djpress-tiptap-group" role="group" aria-label="Structure">
       <button type="button" data-command="toggleBlockquote" data-active="blockquote" data-icon="blockquote" aria-label="Blockquote" title="Blockquote">❝</button>
       <button type="button" data-command="toggleBulletList" data-active="bulletList" data-icon="bullet-list" aria-label="BulletList" title="Bullet list">≔</button>
       <button type="button" data-command="toggleOrderedList" data-active="orderedList" data-icon="ordered-list" aria-label="OrderedList" title="Numbered list">1.</button>
       <button type="button" data-command="toggleCodeBlock" data-active="codeBlock" data-icon="code-block" aria-label="CodeBlock" title="Code block">{ }</button>
     </div>
-    <div class="dj-tiptap-group" role="group" aria-label="Insert">
+    <div class="djpress-tiptap-group" role="group" aria-label="Insert">
       <button type="button" data-command="setLink" data-active="link" data-icon="link" aria-label="Link" title="Add or edit link">🔗</button>
       <button type="button" data-command="setImage" data-active="image" data-icon="image" aria-label="Image" title="Insert image from URL">🖼</button>
       {% if widget.upload_url %}
@@ -41,7 +41,7 @@
       <button type="button" data-command="setHardBreak" data-icon="hard-break" aria-label="HardBreak" title="Hard line break">↵</button>
       <button type="button" data-command="setMore" data-icon="more" aria-label="ReadMore" title="Insert &quot;Read more&quot; marker">✂</button>
     </div>
-    <div class="dj-tiptap-group" role="group" aria-label="Table" data-context-group>
+    <div class="djpress-tiptap-group" role="group" aria-label="Table" data-context-group>
       <button type="button" data-command="addRowBefore" data-enable="addRowBefore" data-icon="add-row-before" aria-label="AddRowBefore" title="Add row above">+Row↑</button>
       <button type="button" data-command="addRowAfter" data-enable="addRowAfter" data-icon="add-row-after" aria-label="AddRowAfter" title="Add row below">+Row↓</button>
       <button type="button" data-command="deleteRow" data-enable="deleteRow" data-icon="delete-row" aria-label="DeleteRow" title="Delete row">−Row</button>
@@ -53,11 +53,11 @@
       <button type="button" data-command="deleteTable" data-enable="deleteTable" data-icon="delete-table" aria-label="DeleteTable" title="Delete table">✕</button>
     </div>
   </div>
-  <dj-tiptap-editor
+  <djpress-tiptap-editor
     name="{{ widget.name }}"
     data-upload-url="{{ widget.upload_url }}"
     data-browse-url="{{ widget.browse_url }}"
     data-accept-image="{{ widget.accept_image }}"
     data-accept-video="{{ widget.accept_video }}"
-  >{% if widget.value %}{{ widget.value }}{% endif %}</dj-tiptap-editor>
+  >{% if widget.value %}{{ widget.value }}{% endif %}</djpress-tiptap-editor>
 </div>

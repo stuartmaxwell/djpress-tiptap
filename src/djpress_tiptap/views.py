@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 import puremagic
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.template.response import TemplateResponse
@@ -16,22 +17,23 @@ if TYPE_CHECKING:
     from django.core.files.uploadedfile import UploadedFile
 
 
-class MediaUploadView(View):
-    """POST multipart {file} -> JSON {url, alt, content_type}.
+class MediaUploadView(PermissionRequiredMixin, View):
+    """Upload media view.
 
-    The pipeline: identify() sniffs the mime type from the file's magic
-    numbers (puremagic), then post() dispatches to handle_<kind> for the
-    mime's top-level type — so accepting a new kind of attachment means
-    writing one more handler method (e.g. handle_audio). Each handler owns
-    its allow-list and size limit and ends by calling store().
+    This view implements the following pipeline on post:
 
-    Images get a second, deeper pass with Pillow inside handle_image: it
-    yields the dimensions and catches corrupt files, which magic numbers
-    can't.
+        - identify() identifies the mime type from the file using puremagic
+        - a handler is called based on the mime type
+        - there are currently two handlers: handle_image() and handle_video()
+        - both verify the file and check it against the allowed types and maximum sizes
+        - then store() is called to save the media
 
     Errors are always {"error": "<message>"} with status 400.
-    POC note: open to anonymous users; add LoginRequiredMixin before real use.
+
+    To upload files, users must have the "djpress.add_media" permission.
     """
+
+    permission_required = "djpress.add_media"
 
     def post(self, request) -> JsonResponse:
         upload = request.FILES.get("file")
@@ -175,8 +177,11 @@ class MediaUploadView(View):
         )
 
 
-class MediaBrowseView(View):
-    """GET ?page=N -> server-rendered thumbnail-grid fragment for the picker dialog."""
+class MediaBrowseView(LoginRequiredMixin, View):
+    """Simple media browser.
+
+    Shows thumbnails of images in a dialog box with simple pagination.
+    """
 
     def get(self, request):
         paginator = Paginator(models.Media.objects.get_by_type("image"), 24)

@@ -119,8 +119,17 @@ export default class DjTiptapEditor extends HTMLElement {
         : extensions,
 
       content: toEditorHTML(this.#initialContent),
-      onCreate: () => this.#syncFormValue(),
-      onUpdate: () => this.#syncFormValue(),
+      // These callbacks receive the editor as an argument, and must use it
+      // instead of this.#editor: the first events can fire *inside* the
+      // `new Editor()` call, before the assignment to this.#editor has
+      // happened. That's not theoretical — when the initial content ends with
+      // an atom block (e.g. a post ending in a <video>), the TrailingNode
+      // plugin dispatches a fix-up transaction during construction, which
+      // emits `update` synchronously while this.#editor is still null.
+      // Reading it here would then throw, aborting the constructor and
+      // leaving the element permanently without an editor.
+      onCreate: ({ editor }) => this.#syncFormValue(editor),
+      onUpdate: ({ editor }) => this.#syncFormValue(editor),
     });
 
     const toolbar = this.parentElement?.querySelector(
@@ -131,7 +140,7 @@ export default class DjTiptapEditor extends HTMLElement {
     }
   }
 
-  #syncFormValue() {
-    this.#internals.setFormValue(fromEditorHTML(this.#editor.getHTML()));
+  #syncFormValue(editor = this.#editor) {
+    this.#internals.setFormValue(fromEditorHTML(editor.getHTML()));
   }
 }

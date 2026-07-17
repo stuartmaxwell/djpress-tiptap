@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 from django.test import Client
+from djpress.models import Post
 from playwright.sync_api import expect
 
 # Playwright's sync API drives an asyncio loop in this thread; Django's ORM
@@ -50,9 +51,7 @@ def authenticated_browser(context, live_server, django_user_model):
     user = django_user_model.objects.create_user(username="author", password="secret")
     client = Client()
     client.force_login(user)
-    context.add_cookies(
-        [{"name": "sessionid", "value": client.cookies["sessionid"].value, "url": live_server.url}]
-    )
+    context.add_cookies([{"name": "sessionid", "value": client.cookies["sessionid"].value, "url": live_server.url}])
 
 
 @pytest.fixture(autouse=True)
@@ -341,6 +340,74 @@ def test_videos_survive_the_round_trip_to_the_public_post_page(page):
     expect(video).to_have_attribute("src", re.compile(r"/media/djpress/\d{4}/\d{2}/\d{2}/clip.*\.mp4"))
 
 
+# Existing sites have hand-written <video> markup using <source> children
+# (webm + mp4 fallback) rather than a src attribute. editor.getHTML() is the
+# form value, so whatever the editor drops is destroyed on the next save even
+# if the user never touches the video block. The contract: a lone <source>
+# collapses into the canonical src-attribute form (same shape as uploaded
+# videos; presentational attributes like width are theme CSS's job), but
+# multiple <source> children are the browser's format-fallback mechanism and
+# must survive verbatim, in order.
+def open_existing_post_in_editor(page, django_user_model, content):
+    """Store `content` as a post's body and open it in the edit form's editor."""
+    author = django_user_model.objects.get(username="author")
+    post = Post.objects.create(
+        title=f"pw-test video sources {time.time_ns()}",
+        content=content,
+        author=author,
+        status="published",
+    )
+    page.goto(f"/{post.pk}/edit/")
+    # Waits on the custom element, not .tiptap or to_be_visible: a broken-src
+    # <video> can have a zero-size box, and a bundle crash during mount leaves
+    # the ProseMirror div without its tiptap class — both would mask the real
+    # assertion failures below with a timeout here.
+    expect(page.locator("djpress-tiptap-editor video")).to_have_count(1)
+
+
+def test_existing_video_with_a_single_source_child_collapses_to_the_src_attribute_form(page, django_user_model):
+    open_existing_post_in_editor(
+        page,
+        django_user_model,
+        """<video controls width="100%">
+  <source src="/media/2026/07/18/example_video.webm" type="video/webm" />
+</video>""",
+    )
+
+    expect(page.locator(".tiptap video")).to_have_attribute("src", "/media/2026/07/18/example_video.webm")
+
+    assert editor_html(page) == (
+        '<video src="/media/2026/07/18/example_video.webm" controls="controls" preload="metadata"></video><p></p>'
+    )
+
+
+def test_existing_video_with_multiple_source_children_keeps_every_source(page, django_user_model):
+    open_existing_post_in_editor(
+        page,
+        django_user_model,
+        """<video controls width="100%">
+  <source src="/media/2026/07/18/example_video.webm" type="video/webm" />
+  <source src="/media/2026/07/18/example_video.mp4" type="video/mp4" />
+</video>""",
+    )
+
+    # Both sources survive in order: browsers pick the first playable one, so
+    # dropping the mp4 breaks playback wherever webm isn't supported
+    sources = page.locator(".tiptap video source")
+    expect(sources).to_have_count(2)
+    expect(sources.nth(0)).to_have_attribute("src", "/media/2026/07/18/example_video.webm")
+    expect(sources.nth(0)).to_have_attribute("type", "video/webm")
+    expect(sources.nth(1)).to_have_attribute("src", "/media/2026/07/18/example_video.mp4")
+    expect(sources.nth(1)).to_have_attribute("type", "video/mp4")
+
+    assert editor_html(page) == (
+        '<video controls="controls" preload="metadata">'
+        '<source src="/media/2026/07/18/example_video.webm" type="video/webm">'
+        '<source src="/media/2026/07/18/example_video.mp4" type="video/mp4">'
+        "</video><p></p>"
+    )
+
+
 def test_dragging_a_corner_handle_resizes_the_image_and_stores_width_height(page):
     page.goto("/add/")
     page.locator("djpress-tiptap-editor .tiptap").click()
@@ -585,9 +652,7 @@ def test_read_more_button_inserts_a_marker_node(page):
     # ProseMirror's DOM parser drops comment nodes, so a literal <!--more-->
     # couldn't survive being loaded back in. See more.js for the full story.
     expect(page.locator('.tiptap div[data-type="more"]')).to_have_text("Read more")
-    assert editor_html(page) == (
-        '<p>Intro</p><div data-type="more">Read more</div><p>Rest of the post</p>'
-    )
+    assert editor_html(page) == ('<p>Intro</p><div data-type="more">Read more</div><p>Rest of the post</p>')
 
 
 def test_read_more_marker_round_trips_as_a_real_html_comment(page):

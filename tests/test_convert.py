@@ -111,6 +111,22 @@ def test_the_more_marker_survives_conversion(author):
 
 
 @pytest.mark.usefixtures("markdown_renderer_configured")
+def test_a_more_marker_mentioned_inside_code_converts_with_a_warning(author):
+    # A post *about* the marker, not using it: rendering escapes the backticked
+    # mention, so djpress's raw string search stops (mis)treating it as a real
+    # marker. The post must still convert — skipping would strand it as
+    # Markdown — with a warning that it stops being truncated on index pages.
+    post = make_post(author, "Move the `<!--more-->` tag into the settings file.")
+
+    out, _ = convert("--apply")
+    post.refresh_from_db()
+
+    assert post.content == "<p>Move the <code>&lt;!--more--&gt;</code> tag into the settings file.</p>"
+    assert "no longer be truncated" in out
+    assert "converted" in out
+
+
+@pytest.mark.usefixtures("markdown_renderer_configured")
 def test_tags_outside_the_editor_schema_are_reported(author):
     make_post(author, 'Text\n\n<iframe src="https://example.com/embed"></iframe>')
 

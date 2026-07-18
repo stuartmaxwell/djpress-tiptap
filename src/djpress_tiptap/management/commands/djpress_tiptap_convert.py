@@ -109,20 +109,25 @@ class Command(BaseCommand):
 
             rendered = renderer(raw)
 
+            note = ""
             if truncate_tag in raw and truncate_tag not in rendered:
-                # Never trade the excerpt marker away silently: djpress splits
-                # on the raw tag before rendering, so losing it changes what
-                # the index pages show.
-                self.stderr.write(
-                    self.style.ERROR(f"{label}: skipped — rendering would lose the {truncate_tag} marker")
+                # A genuine standalone marker passes through Markdown rendering
+                # as a raw comment, so this means every occurrence was escaped —
+                # a *mention* inside code, not a marker. djpress's naive string
+                # search on the raw content treated the mention as a marker
+                # (truncating the post mid-code-span), so the visible change is
+                # that the post stops being truncated. Warn rather than skip:
+                # unconverted Markdown breaks outright once the renderer is
+                # switched.
+                note += self.style.WARNING(
+                    f" — the {truncate_tag} here only appears escaped inside code, so the post "
+                    "will no longer be truncated on index pages; if truncation was intended, "
+                    "re-add the marker with the editor's Read more button"
                 )
-                skipped += 1
-                continue
 
             leftovers = unsupported_tags(rendered)
-            note = ""
             if leftovers:
-                note = self.style.WARNING(
+                note += self.style.WARNING(
                     f" — contains tags the editor would drop on the next save: {', '.join(leftovers)}"
                 )
 

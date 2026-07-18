@@ -78,3 +78,10 @@ already switched, pass `--renderer djpress.markdown_renderer.default_renderer`. 
 **back up the database first**. The command's report also flags posts containing HTML the editor's schema doesn't model
 (iframes, definition lists, ...): those render fine on the public site, but the flagged tags would be dropped the first
 time such a post is edited and saved.
+
+If the report flags `div, span` on posts with fenced code blocks, your `MARKDOWN_EXTENSIONS` includes `codehilite`,
+which bakes Pygments highlighting markup into the HTML — markup the editor strips on the first edit, taking the
+language information with it. Remove `codehilite` from `MARKDOWN_EXTENSIONS` for the conversion run: plain
+`fenced_code` produces `<pre><code class="language-python">`, the exact form the editor round-trips losslessly. Public
+pages then need client-side highlighting instead of Pygments — include this package's `content.bundle.js` and
+`content.css` (highlight.js) on the post templates, as the example project does.

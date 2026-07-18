@@ -48,8 +48,9 @@ class TiptapPostAdmin(PostAdmin):
 ```
 
 The app with this `admin.py` must come after `djpress` in `INSTALLED_APPS` (unregister needs djpress's registration
-to have run first), and the package URLs must be included for the upload/browse endpoints to resolve. Note the admin's
-dark theme is not yet supported: the editor keeps its light styling.
+to have run first), and the package URLs must be included for the upload/browse endpoints to resolve. The editor pins
+its content styles against the host page's CSS (the admin's global element styles, list bullets, heading bars, form
+font sizes, don't bleed in). Note the admin's dark theme is not yet supported: the editor keeps its light styling.
 
 ## Content renderer
 

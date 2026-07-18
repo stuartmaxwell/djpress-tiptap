@@ -25,6 +25,32 @@ validated by magic bytes with [puremagic](https://github.com/cdgriffith/puremagi
 host project (see `example/website/views.py` for the reference implementation) - its JSON response's `content_type`
 field tells the editor which element to insert.
 
+## Django admin
+
+The widget works in the Django admin: its `Media` class makes the admin pull in the editor bundle and CSS
+automatically. DJ Press registers its own `PostAdmin`, so unregister it and subclass, swapping only the content
+field's widget (see `example/website/admin.py` for the reference implementation):
+
+```python
+from django.contrib import admin
+from djpress.admin import PostAdmin
+from djpress.models import Post
+from djpress_tiptap.widgets import DjTiptapWidget
+
+admin.site.unregister(Post)
+
+
+@admin.register(Post)
+class TiptapPostAdmin(PostAdmin):
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        kwargs["widgets"] = {"content": DjTiptapWidget()}
+        return super().get_form(request, obj, change, **kwargs)
+```
+
+The app with this `admin.py` must come after `djpress` in `INSTALLED_APPS` (unregister needs djpress's registration
+to have run first), and the package URLs must be included for the upload/browse endpoints to resolve. Note the admin's
+dark theme is not yet supported: the editor keeps its light styling.
+
 ## Content renderer
 
 The editor stores HTML in `Post.content`, but DJ Press's default `CONTENT_RENDERER` converts Markdown. Sites using this

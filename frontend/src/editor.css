@@ -78,6 +78,117 @@ djpress-tiptap-editor {
   color: #0b57d0;
 }
 
+/* ---- Django Admin style isolation ----------------------------------------*/
+
+.tiptap.tiptap p,
+.tiptap.tiptap li {
+  padding: 0;
+  /* on the li itself: hosts target `ul > li` directly (Django admin sets
+     list-style-type: none there), which beats any value inherited from ul */
+  list-style: inherit;
+  color: inherit;
+  font-family: inherit;
+  font-size: 1em;
+  font-weight: inherit;
+  line-height: inherit;
+}
+.tiptap.tiptap p {
+  margin: 0.5rem 0;
+}
+.tiptap.tiptap ul,
+.tiptap.tiptap ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+.tiptap.tiptap ul {
+  list-style: disc outside;
+}
+.tiptap.tiptap ul ul {
+  list-style-type: circle;
+}
+.tiptap.tiptap ul ul ul {
+  list-style-type: square;
+}
+.tiptap.tiptap ol {
+  list-style: decimal outside;
+}
+.tiptap.tiptap :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1rem 0 0.5rem;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-weight: bold;
+  line-height: 1.25;
+  text-align: start;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.tiptap.tiptap h1 {
+  font-size: 1.6em;
+}
+.tiptap.tiptap h2 {
+  font-size: 1.35em;
+}
+.tiptap.tiptap h3 {
+  font-size: 1.15em;
+}
+.tiptap.tiptap h4 {
+  font-size: 1em;
+}
+.tiptap.tiptap h5 {
+  font-size: 0.875em;
+}
+.tiptap.tiptap h6 {
+  font-size: 0.85em;
+}
+.tiptap.tiptap a {
+  color: #0969da;
+  text-decoration: underline;
+}
+.tiptap.tiptap blockquote {
+  margin: 0.75rem 0;
+  padding: 0 1rem;
+  border-left: 3px solid #d0d7de;
+  color: #59636e;
+  font-size: 1em;
+}
+.tiptap.tiptap code,
+.tiptap.tiptap pre {
+  color: inherit;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+.tiptap.tiptap pre {
+  margin: 0.75rem 0;
+  font-size: 1em;
+}
+.tiptap.tiptap code {
+  font-size: 0.9em;
+}
+.tiptap.tiptap pre code {
+  font-size: 0.875em;
+}
+.tiptap.tiptap table {
+  margin: 0.5rem 0;
+  border-collapse: collapse;
+}
+.tiptap.tiptap th,
+.tiptap.tiptap td {
+  border: 1px solid #cbd0d6;
+  padding: 0.25rem 0.5rem;
+  color: inherit;
+  font-size: 1em;
+  line-height: inherit;
+  vertical-align: top;
+}
+.tiptap.tiptap th {
+  background: #f6f8fa;
+  font-weight: bold;
+  text-align: start;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 /* ---- The editing surface ---------------------------------------------- */
 
 .tiptap {

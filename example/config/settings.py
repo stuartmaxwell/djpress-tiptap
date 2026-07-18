@@ -115,3 +115,9 @@ MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 """DJ Tiptap configuration."""
+
+
+"""DJ Press configuration."""
+DJPRESS_SETTINGS = {
+    "CONTENT_RENDERER": "djpress_tiptap.renderers.html_renderer",
+}

@@ -206,7 +206,7 @@ def _render(node: Element | Comment | str) -> str:  # noqa: C901, PLR0911, PLR09
     if tag in {"em", "i"}:
         return f"*{content}*"
     if tag in {"s", "strike", "del"}:
-        return f"~~{content}~~"
+        return f"<del>{content}</del>"
     if tag == "code":
         return _inline_code(_text_content(node))
     if tag == "pre":

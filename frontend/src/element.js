@@ -9,12 +9,11 @@ import { Editor } from "@tiptap/core";
 import { extensions } from "./extensions.js";
 import { initToolbar } from "./toolbar.js";
 import { createFileHandler } from "./attachments.js";
-import { MORE_TAG, MORE_ATTR, MORE_VALUE } from "./more.js";
+import { MORE_COMMENT, MORE_TAG, MORE_ATTR, MORE_VALUE } from "./more.js";
 
 // `<!--more-->` is invisible to the editor's schema (see more.js), so it's
 // swapped for the `more` node's sentinel element on the way in, and back
 // again on the way out — the DB and DJ Press only ever see the real comment.
-const MORE_COMMENT = "<!--more-->";
 const MORE_ELEMENT_RE = new RegExp(
   `<${MORE_TAG} ${MORE_ATTR}="${MORE_VALUE}"[^>]*>.*?</${MORE_TAG}>`,
   "g",
@@ -29,6 +28,12 @@ function toEditorHTML(html) {
 
 function fromEditorHTML(html) {
   return html.replace(MORE_ELEMENT_RE, MORE_COMMENT);
+}
+
+function normalizeMarkdown(markdown) {
+  // Marked/Tiptap may retain CRLF line endings from textarea-style browser
+  // input. Store one canonical representation regardless of browser or OS.
+  return markdown.replace(/\r\n?/g, "\n");
 }
 
 export default class DjTiptapEditor extends HTMLElement {
@@ -69,7 +74,13 @@ export default class DjTiptapEditor extends HTMLElement {
 
   // Called by the browser when the surrounding form is reset.
   formResetCallback() {
-    this.#editor?.commands.setContent(toEditorHTML(this.#initialContent));
+    const storageFormat = this.dataset.storageFormat || "markdown";
+    this.#editor?.commands.setContent(
+      storageFormat === "html"
+        ? toEditorHTML(this.#initialContent)
+        : this.#initialContent,
+      { contentType: storageFormat },
+    );
     this.#syncFormValue();
   }
 
@@ -107,6 +118,7 @@ export default class DjTiptapEditor extends HTMLElement {
       csrfToken: () =>
         this.closest("form")?.querySelector('input[name="csrfmiddlewaretoken"]')
           ?.value ?? "",
+      storageFormat: this.dataset.storageFormat || "markdown",
     };
 
     this.#editor = new Editor({
@@ -118,7 +130,11 @@ export default class DjTiptapEditor extends HTMLElement {
         ? [...extensions, createFileHandler(config)]
         : extensions,
 
-      content: toEditorHTML(this.#initialContent),
+      content:
+        config.storageFormat === "html"
+          ? toEditorHTML(this.#initialContent)
+          : this.#initialContent,
+      contentType: config.storageFormat,
       // These callbacks receive the editor as an argument, and must use it
       // instead of this.#editor: the first events can fire *inside* the
       // `new Editor()` call, before the assignment to this.#editor has
@@ -141,6 +157,10 @@ export default class DjTiptapEditor extends HTMLElement {
   }
 
   #syncFormValue(editor = this.#editor) {
-    this.#internals.setFormValue(fromEditorHTML(editor.getHTML()));
+    const value =
+      this.dataset.storageFormat === "html"
+        ? fromEditorHTML(editor.getHTML())
+        : normalizeMarkdown(editor.getMarkdown());
+    this.#internals.setFormValue(value);
   }
 }

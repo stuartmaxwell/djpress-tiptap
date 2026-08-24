@@ -34,12 +34,12 @@ def convert(*args):
 
 def test_converts_the_editor_schema_to_markdown():
     html = (
-        "<h2>Hello</h2><p>Some <strong>bold</strong>, <em>italic</em> and "
+        "<h2>Hello</h2><p>Some <strong>bold</strong>, <em>italic</em>, <s>deleted</s> and "
         '<a href="/about/" title="About">linked</a> text.</p>'
         '<pre><code class="language-python">print("hello")</code></pre>'
     )
     assert html_to_markdown(html) == (
-        '## Hello\n\nSome **bold**, *italic* and [linked](/about/ "About") text.\n\n'
+        '## Hello\n\nSome **bold**, *italic*, <del>deleted</del> and [linked](/about/ "About") text.\n\n'
         '```python\nprint("hello")\n```'
     )
 

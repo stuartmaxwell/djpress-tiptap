@@ -67,8 +67,13 @@ def page_errors(page):
 
 
 def editor_html(page):
-    """The editor's stored HTML (what the form field will submit)."""
+    """The editor's internal HTML, useful for asserting its visible schema."""
     return page.evaluate("document.querySelector('djpress-tiptap-editor').editor.getHTML()")
+
+
+def editor_markdown(page):
+    """The canonical value the form control submits in the default mode."""
+    return page.evaluate("document.querySelector('djpress-tiptap-editor').editor.getMarkdown()")
 
 
 def upload_fixture(page, filename):
@@ -115,6 +120,72 @@ def test_toolbar_mark_formats_the_selected_text(page, button, html):
     expect(btn).to_have_class(re.compile("is-active"))
 
     assert editor_html(page) == html
+
+
+def test_underline_uses_portable_html_inside_markdown(page):
+    page.goto("/add/")
+    page.locator("djpress-tiptap-editor .tiptap").click()
+    page.keyboard.type("Underlined")
+    page.keyboard.press("ControlOrMeta+a")
+    page.get_by_role("button", name="Underline", exact=True).click()
+
+    assert editor_markdown(page) == "<u>Underlined</u>"
+
+
+def test_strikethrough_uses_portable_del_html_and_renders_publicly(page):
+    title = f"pw-test strike {time.time_ns()}"
+
+    page.goto("/add/")
+    page.fill("input[name=title]", title)
+    page.locator("djpress-tiptap-editor .tiptap").click()
+    page.keyboard.type("Deleted")
+    page.keyboard.press("ControlOrMeta+a")
+    page.get_by_role("button", name="Strike", exact=True).click()
+
+    assert editor_markdown(page) == "<del>Deleted</del>"
+
+    page.click("input[type=submit]")
+    page.wait_for_url("/")
+    assert Post.objects.get(title=title).content == "<del>Deleted</del>"
+
+    page.click(f"text={title}")
+    expect(page.locator(".post-content del")).to_have_text("Deleted")
+
+
+def test_existing_tilde_strikethrough_loads_and_resaves_as_del(page, django_user_model):
+    author = django_user_model.objects.get(username="author")
+    post = Post.objects.create(
+        title=f"pw-test legacy strike {time.time_ns()}",
+        content="Before ~~deleted~~ after",
+        author=author,
+        status="published",
+    )
+
+    page.goto(f"/{post.pk}/edit/")
+    expect(page.locator(".tiptap s")).to_have_text("deleted")
+    assert editor_markdown(page) == "Before <del>deleted</del> after"
+
+
+def test_hard_break_toolbar_stores_markdown_hard_break(page):
+    title = f"pw-test hard break {time.time_ns()}"
+
+    page.goto("/add/")
+    page.fill("input[name=title]", title)
+    page.locator("djpress-tiptap-editor .tiptap").click()
+    page.keyboard.type("First line")
+    page.get_by_role("button", name="HardBreak", exact=True).click()
+    page.keyboard.type("Second line")
+
+    assert editor_html(page) == "<p>First line<br>Second line</p>"
+    assert editor_markdown(page) == "First line  \nSecond line"
+
+    page.click("input[type=submit]")
+    page.wait_for_url("/")
+    assert Post.objects.get(title=title).content == "First line  \nSecond line"
+
+    page.click(f"text={title}")
+    expect(page.locator(".post-content br")).to_have_count(1)
+    expect(page.locator(".post-content p")).to_have_text("First line\nSecond line")
 
 
 # Node-level commands restructure the block that contains the cursor — no
@@ -173,6 +244,7 @@ def test_published_code_blocks_are_highlighted_on_the_public_post_page(page):
 
     page.click("input[type=submit]")
     page.wait_for_url("/")
+    assert Post.objects.get(title=title).content == '```js\nconst greeting = "hello";\n```'
     page.click(f"text={title}")
 
     # highlight.js on the public page tokenises the stored language-js block
@@ -275,6 +347,7 @@ def test_video_command_inserts_a_video_from_the_prompted_url(page):
     expect(video).to_have_attribute("controls", "controls")
 
     assert editor_html(page) == f'<video src="{src}" controls="controls" preload="metadata"></video><p></p>'
+    assert editor_markdown(page).strip() == f'<video src="{src}" controls="controls" preload="metadata"></video>'
 
 
 def test_video_upload_button_uploads_the_chosen_file_and_inserts_a_video_element(page):
@@ -435,6 +508,7 @@ def test_dragging_a_corner_handle_resizes_the_image_and_stores_width_height(page
     width, height = int(match.group(1)), int(match.group(2))
     assert width > 300
     assert height == round(width * (200 / 300))
+    assert re.search(r'<img [^>]*width="\d+" height="\d+">', editor_markdown(page))
 
 
 def test_media_library_dialog_inserts_a_previously_uploaded_image(page):
@@ -533,6 +607,9 @@ def test_table_columns_can_be_resized_by_dragging_and_the_width_persists(page):
 
     # The dragged width is stored on the column's cells and survives serialization
     assert re.search(r'colwidth="\d+"', editor_html(page))
+    # GFM has no column-width syntax, so a resized table intentionally uses
+    # Markdown's raw-HTML escape hatch rather than losing the dimensions.
+    assert "<table" in editor_markdown(page)
 
 
 def test_tables_survive_the_round_trip_to_the_public_post_page(page):
@@ -546,12 +623,44 @@ def test_tables_survive_the_round_trip_to_the_public_post_page(page):
 
     page.click("input[type=submit]")
     page.wait_for_url("/")
+    stored = Post.objects.get(title=title).content
+    assert "| Header cell" in stored
+    assert "<table" not in stored
     page.click(f"text={title}")
 
     table = page.locator(".post-content table")
     expect(table).to_be_visible()
     expect(table.locator("tr")).to_have_count(3)
     expect(table.locator("th").first).to_have_text("Header cell")
+
+
+def test_resized_table_widths_survive_a_saved_markdown_round_trip(page, django_user_model):
+    author = django_user_model.objects.get(username="author")
+    post = Post.objects.create(
+        title=f"pw-test table widths {time.time_ns()}",
+        content=(
+            '<table><tbody><tr><th colspan="1" rowspan="1" colwidth="240">'
+            "<p>Wide</p></th></tr></tbody></table>"
+        ),
+        author=author,
+        status="published",
+    )
+
+    page.goto(f"/{post.pk}/edit/")
+    expect(page.locator(".tiptap th")).to_have_attribute("colwidth", "240")
+    page.locator(".tiptap th").click()
+    page.keyboard.press("End")
+    page.keyboard.type(" cell")
+    page.click("input[type=submit]")
+    page.wait_for_url("/")
+
+    post.refresh_from_db()
+    assert "<table" in post.content
+    assert 'colwidth="240"' in post.content
+
+    page.goto(f"/{post.pk}/edit/")
+    expect(page.locator(".tiptap th")).to_have_attribute("colwidth", "240")
+    expect(page.locator(".tiptap th")).to_contain_text("Wide cell")
 
 
 def test_empty_editor_shows_a_placeholder_that_never_reaches_the_stored_html(page):
@@ -626,7 +735,7 @@ def test_undo_becomes_available_once_something_is_typed(page):
     assert editor_html(page) == "<p></p>"
 
 
-def test_form_submits_the_editors_html_and_round_trips_it(page):
+def test_form_submits_markdown_and_round_trips_it(page):
     title = f"pw-test {time.time_ns()}"
 
     page.goto("/add/")
@@ -636,6 +745,9 @@ def test_form_submits_the_editors_html_and_round_trips_it(page):
 
     page.click("input[type=submit]")
     page.wait_for_url("/")
+
+    post = Post.objects.get(title=title)
+    assert post.content == "Round trip works"
 
     # Reopen the saved post in the edit form: the widget must restore the value
     page.click(f"text={title}")
@@ -656,6 +768,7 @@ def test_read_more_button_inserts_a_marker_node(page):
     # couldn't survive being loaded back in. See more.js for the full story.
     expect(page.locator('.tiptap div[data-type="more"]')).to_have_text("Read more")
     assert editor_html(page) == ('<p>Intro</p><div data-type="more">Read more</div><p>Rest of the post</p>')
+    assert editor_markdown(page) == "Intro\n\n<!--more-->\n\nRest of the post"
 
 
 def test_read_more_marker_round_trips_as_a_real_html_comment(page):
@@ -672,12 +785,66 @@ def test_read_more_marker_round_trips_as_a_real_html_comment(page):
     page.wait_for_url("/")
     page.click(f"text={title}")
 
-    # The example page's raw echo (unescaped Django auto-escaping, so this
-    # renders as literal visible text) proves the *stored* value is the real
+    # The example page's raw echo (Django auto-escaping makes the comment
+    # visible as literal text) proves the *stored* value is the real
     # `<!--more-->` comment DJ Press looks for, not the editor's sentinel node.
-    expect(page.locator("div[style*='monospace']")).to_contain_text("<!--more-->")
+    expect(page.locator("pre[style*='monospace']")).to_contain_text("<!--more-->")
 
     # Reopening the form restores the marker as an editable node again
     page.click("text=edit")
     expect(page.locator('.tiptap div[data-type="more"]')).to_have_text("Read more")
     assert "<!--more-->" not in editor_html(page)
+
+
+def test_more_text_inside_code_does_not_become_a_marker_node(page, django_user_model):
+    author = django_user_model.objects.get(username="author")
+    post = Post.objects.create(
+        title=f"pw-test literal more {time.time_ns()}",
+        content="Inline `<!--more-->`\n\n```html\n<!--more-->\n```",
+        author=author,
+        status="published",
+    )
+
+    page.goto(f"/{post.pk}/edit/")
+    expect(page.locator('.tiptap div[data-type="more"]')).to_have_count(0)
+    expect(page.locator(".tiptap code").first).to_contain_text("<!--more-->")
+    expect(page.locator(".tiptap pre code")).to_contain_text("<!--more-->")
+
+
+def test_legacy_html_mode_still_submits_html(page, settings):
+    settings.DJPRESS_TIPTAP_STORAGE_FORMAT = "html"
+    title = f"pw-test legacy html {time.time_ns()}"
+
+    page.goto("/add/")
+    page.fill("input[name=title]", title)
+    page.locator("djpress-tiptap-editor .tiptap").click()
+    page.keyboard.type("Legacy content")
+    page.click("input[type=submit]")
+    page.wait_for_url("/")
+
+    assert Post.objects.get(title=title).content == "<p>Legacy content</p>"
+
+
+def test_resized_image_dimensions_survive_a_saved_markdown_round_trip(page):
+    title = f"pw-test image dimensions {time.time_ns()}"
+    page.goto("/add/")
+    page.fill("input[name=title]", title)
+    page.locator("djpress-tiptap-editor .tiptap").click()
+    upload_fixture(page, "photo.png")
+    page.locator(".tiptap img").click()
+    page.evaluate(
+        """() => document.querySelector("djpress-tiptap-editor").editor.commands.updateAttributes(
+            "image", { width: 640, height: 480 },
+        )"""
+    )
+    page.click("input[type=submit]")
+    page.wait_for_url("/")
+
+    stored = Post.objects.get(title=title).content
+    assert re.search(r'<img src="/media/.+photo[^\"]*\.png" alt="photo.png" width="640" height="480">', stored)
+
+    page.click(f"text={title}")
+    page.click("text=edit")
+    # The resizable node view keeps dimensions in document attributes rather
+    # than placing them directly on its live <img>; getHTML reflects the state.
+    assert 'width="640" height="480"' in editor_html(page)

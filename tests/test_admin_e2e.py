@@ -59,7 +59,7 @@ def test_admin_add_post_page_mounts_the_editor_and_toolbar(page):
     expect(page.get_by_role("button", name="UploadImage", exact=True)).to_be_visible()
 
 
-def test_a_post_written_in_the_admin_stores_the_editors_html(page):
+def test_a_post_written_in_the_admin_stores_markdown(page):
     title = f"pw-admin {time.time_ns()}"
 
     page.goto("/admin/djpress/post/add/")
@@ -73,7 +73,7 @@ def test_a_post_written_in_the_admin_stores_the_editors_html(page):
     page.wait_for_url("/admin/djpress/post/")
 
     post = Post.admin_objects.get(title=title)
-    assert post.content == "<p><strong>Written in the admin</strong></p>"
+    assert post.content == "**Written in the admin**"
 
 
 def test_admin_change_page_round_trips_a_multi_source_video(page, admin_browser):
@@ -102,5 +102,5 @@ def test_admin_change_page_round_trips_a_multi_source_video(page, admin_browser)
         '<video controls="controls" preload="metadata">'
         '<source src="/media/2026/07/18/example_video.webm" type="video/webm">'
         '<source src="/media/2026/07/18/example_video.mp4" type="video/mp4">'
-        "</video><p></p>"
+        "</video>"
     )

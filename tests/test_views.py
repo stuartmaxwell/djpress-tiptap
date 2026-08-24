@@ -81,10 +81,10 @@ class TestMediaUpload:
         assert response.status_code == 201
         assert models.Media.objects.get().media_type == "image"
 
-    def test_anonymous_upload_requires_login(self):
+    def test_anonymous_upload_requires_login(self, settings):
         response = Client().post(UPLOAD_URL, {"file": image_upload()})
         assert response.status_code == 302
-        assert response.url == f"/accounts/login/?next={UPLOAD_URL}"
+        assert response.url == f"{settings.LOGIN_URL}?next={UPLOAD_URL}"
         assert not models.Media.objects.exists()
 
     def test_authenticated_user_without_permission_is_forbidden(self, django_user_model):

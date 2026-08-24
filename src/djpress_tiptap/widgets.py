@@ -8,9 +8,9 @@ from djpress_tiptap import conf
 class DjTiptapWidget(forms.Widget):
     """Tiptap rich-text editor rendered as a form-associated custom element.
 
-    The <djpress-tiptap-editor> element registers itself as a form control via
-    ElementInternals, so it submits its HTML under the field name directly —
-    no hidden input needed.
+    The <djpress-tiptap-editor> element registers itself as a form control via ElementInternals, so it submits its
+    Markdown under the field name directly without the need for a hidden input. An explicit legacy setting can retain
+    HTML while a site migrates content created by djpress-tiptap 0.2.
 
     The attachment endpoints are configurable per instance
     (DjTiptapWidget(upload_url=..., browse_url=...)), per project
@@ -42,7 +42,15 @@ class DjTiptapWidget(forms.Widget):
         # offers its own kind; the JS combines them for the drag-drop filter.
         context["widget"]["accept_image"] = ",".join(conf.allowed_image_types().values())
         context["widget"]["accept_video"] = ",".join(sorted(conf.allowed_video_types()))
+        context["widget"]["storage_format"] = conf.storage_format()
         return context
+
+    def value_from_datadict(self, data, files, name):
+        """Return LF Markdown after HTML form line-break normalization."""
+        value = super().value_from_datadict(data, files, name)
+        if conf.storage_format() == "markdown" and isinstance(value, str):
+            return value.replace("\r\n", "\n").replace("\r", "\n")
+        return value
 
     class Media:
         js = ["djpress_tiptap/djtiptap.bundle.js"]

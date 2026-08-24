@@ -117,7 +117,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 """DJ Tiptap configuration."""
 
 
-"""DJ Press configuration."""
+"""DJ Press uses its Markdown renderer with the editor's block features."""
 DJPRESS_SETTINGS = {
-    "CONTENT_RENDERER": "djpress_tiptap.renderers.html_renderer",
+    "MARKDOWN_EXTENSIONS": ["fenced_code", "tables"],
 }

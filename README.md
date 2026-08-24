@@ -11,14 +11,15 @@ All settings are optional; the package works with sensible defaults. Upload
 and browse buttons only appear in the toolbar when the corresponding URL is
 configured.
 
-| Setting | Default | Purpose |
-| --- | --- | --- |
-| `DJPRESS_TIPTAP_UPLOAD_URL` | unset (uploads disabled) | URL name or path of the attachment upload endpoint |
-| `DJPRESS_TIPTAP_BROWSE_URL` | unset (library disabled) | URL name or path of the media-library browse endpoint |
-| `DJPRESS_TIPTAP_MAX_UPLOAD_SIZE_MB` | `10` | Maximum image upload size |
-| `DJPRESS_TIPTAP_MAX_VIDEO_UPLOAD_SIZE_MB` | `100` | Maximum video upload size |
-| `DJPRESS_TIPTAP_ALLOWED_IMAGE_TYPES` | JPEG/PNG/GIF/WebP | Dict of Pillow format → mime type accepted by the upload view |
-| `DJPRESS_TIPTAP_ALLOWED_VIDEO_TYPES` | `{"video/mp4", "video/webm"}` | Set of video mime types accepted by the upload view; set to `set()` to disable video uploads |
+| Setting                                   | Default                       | Purpose                                                                                              |
+| ----------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `DJPRESS_TIPTAP_UPLOAD_URL`               | unset (uploads disabled)      | URL name or path of the attachment upload endpoint                                                   |
+| `DJPRESS_TIPTAP_BROWSE_URL`               | unset (library disabled)      | URL name or path of the media-library browse endpoint                                                |
+| `DJPRESS_TIPTAP_MAX_UPLOAD_SIZE_MB`       | `10`                          | Maximum image upload size                                                                            |
+| `DJPRESS_TIPTAP_MAX_VIDEO_UPLOAD_SIZE_MB` | `100`                         | Maximum video upload size                                                                            |
+| `DJPRESS_TIPTAP_ALLOWED_IMAGE_TYPES`      | JPEG/PNG/GIF/WebP             | Dict of Pillow format → mime type accepted by the upload view                                        |
+| `DJPRESS_TIPTAP_ALLOWED_VIDEO_TYPES`      | `{"video/mp4", "video/webm"}` | Set of video mime types accepted by the upload view; set to `set()` to disable video uploads         |
+| `DJPRESS_TIPTAP_STORAGE_FORMAT`           | `"markdown"`                  | Canonical content format; deprecated `"html"` mode exists temporarily for sites upgrading from 0.2.x |
 
 Images are inserted as `<img>` and validated with Pillow; videos are inserted as HTML5 `<video controls>` elements and
 validated by magic bytes with [puremagic](https://github.com/cdgriffith/puremagic). The upload endpoint lives in the
@@ -54,29 +55,58 @@ font sizes, don't bleed in). Note the admin's dark theme is not yet supported: t
 
 ## Content renderer
 
-The editor stores HTML in `Post.content`, but DJ Press's default `CONTENT_RENDERER` converts Markdown. Sites using this
-package should switch to the bundled pass-through renderer:
+The editor stores Markdown in `Post.content`, matching DJ Press's standard beahviour. Features that Markdown cannot
+represent losslessly use embedded HTML: videos, resized images, resized/complex tables and underline.
+
+Use DJ Press's default content renderer and enable the extensions needed by the corresponding editor toolbar features:
 
 ```python
+DJPRESS_SETTINGS = {
+    "MARKDOWN_EXTENSIONS": ["fenced_code", "tables"],
+}
+```
+
+## Upgrading from djpress-tiptap 0.2.x
+
+Versions 0.2.x stored content as HTML and used `djpress_tiptap.renderers.html_renderer`. On upgrade, select
+compatibility mode first so existing posts continue to load and save as HTML. Django's system checks will emit
+`djpress_tiptap.W001` until the deprecated compatibility mode is removed:
+
+```python
+DJPRESS_TIPTAP_STORAGE_FORMAT = "html"
+
 DJPRESS_SETTINGS = {
     "CONTENT_RENDERER": "djpress_tiptap.renderers.html_renderer",
 }
 ```
 
-## Migrating an existing Markdown site
+Back up the database, then audit and convert the existing HTML. The command is a dry run unless `--apply` is passed:
 
-Existing posts stored as Markdown must be converted to HTML before they can be edited with this widget. The
-`djpress_tiptap_convert` management command renders each post with the site's configured Markdown renderer, so the
-public pages are unchanged, and writes the HTML back to `Post.content`:
+```sh
+python manage.py djpress_tiptap_convert_to_markdown
+python manage.py djpress_tiptap_convert_to_markdown --apply
+```
+
+The converter produces portable Markdown and retains HTML for video, resized media and complex tables. Other HTML
+outside the editor schema is preserved and reported for manual review. It does not change post `updated_at` timestamps.
+
+After conversion, remove `DJPRESS_TIPTAP_STORAGE_FORMAT` (or set it to `"markdown"`), remove the pass-through
+`CONTENT_RENDERER`, and enable `MARKDOWN_EXTENSIONS` as shown above. Do not leave Markdown posts in HTML mode or HTML
+posts in Markdown mode; format auto-detection is intentionally avoided because valid Markdown may contain HTML. The
+`djpress_tiptap.E001` system check prevents Markdown storage from being used with the legacy pass-through renderer.
+
+## Legacy Markdown-to-HTML command
+
+`djpress_tiptap_convert` is retained for compatibility with the old HTML-storage workflow. It renders each post with
+the configured Markdown renderer and writes the resulting HTML back to `Post.content`:
 
 ```sh
 python manage.py djpress_tiptap_convert           # dry run: reports what would change
 python manage.py djpress_tiptap_convert --apply   # write the converted content
 ```
 
-Convert first (while `CONTENT_RENDERER` is still the Markdown renderer), then switch the setting; if the setting was
-already switched, pass `--renderer djpress.markdown_renderer.default_renderer`. The conversion is one-way:
-**back up the database first**. The command's report also flags posts containing HTML the editor's schema doesn't model
+If the setting was already switched, pass `--renderer djpress.markdown_renderer.default_renderer`. Back up the
+database first. The command's report also flags posts containing HTML the editor's schema doesn't model
 (iframes, definition lists, ...): those render fine on the public site, but the flagged tags would be dropped the first
 time such a post is edited and saved.
 

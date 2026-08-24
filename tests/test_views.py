@@ -3,6 +3,7 @@
 import io
 
 import pytest
+from django.contrib.auth.models import Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
 from djpress import models
@@ -21,12 +22,15 @@ def media_root(settings, tmp_path):
 
 @pytest.fixture
 def user(django_user_model):
-    return django_user_model.objects.create_user(username="author", password="secret")
+    user = django_user_model.objects.create_user(username="author", password="secret")
+    permission = Permission.objects.get(content_type__app_label="djpress", codename="add_media")
+    user.user_permissions.add(permission)
+    return user
 
 
 @pytest.fixture
 def client(user):
-    """An authenticated test client — how the endpoints are used from the post form."""
+    """An authenticated client whose user is allowed to upload media."""
     client = Client()
     client.force_login(user)
     return client
@@ -77,12 +81,21 @@ class TestMediaUpload:
         assert response.status_code == 201
         assert models.Media.objects.get().media_type == "image"
 
-    def test_anonymous_upload_stores_no_uploader(self):
-        # The bundled views are open to anonymous users (see MediaUploadView);
-        # Media.uploaded_by is nullable and must stay unset rather than crash.
+    def test_anonymous_upload_requires_login(self):
         response = Client().post(UPLOAD_URL, {"file": image_upload()})
-        assert response.status_code == 201
-        assert models.Media.objects.get().uploaded_by is None
+        assert response.status_code == 302
+        assert response.url == f"/accounts/login/?next={UPLOAD_URL}"
+        assert not models.Media.objects.exists()
+
+    def test_authenticated_user_without_permission_is_forbidden(self, django_user_model):
+        user = django_user_model.objects.create_user(username="reader", password="secret")
+        client = Client()
+        client.force_login(user)
+
+        response = client.post(UPLOAD_URL, {"file": image_upload()})
+
+        assert response.status_code == 403
+        assert not models.Media.objects.exists()
 
     def test_get_not_allowed(self, client):
         assert client.get(UPLOAD_URL).status_code == 405

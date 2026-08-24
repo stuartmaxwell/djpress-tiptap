@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 
 import pytest
+from django.contrib.auth.models import Permission
 from django.test import Client
 from djpress.models import Post
 from playwright.sync_api import expect
@@ -42,13 +43,15 @@ def browser_context_args(browser_context_args, live_server):
 
 @pytest.fixture(autouse=True)
 def authenticated_browser(context, live_server, django_user_model):
-    """Log the browser in before each test: the example site's views all require login.
+    """Log in an author who can use the site's views and upload media.
 
     force_login() writes a session row into the test database the live server
     reads from; handing its cookie to Playwright's context authenticates every
     page the test opens.
     """
     user = django_user_model.objects.create_user(username="author", password="secret")
+    permission = Permission.objects.get(content_type__app_label="djpress", codename="add_media")
+    user.user_permissions.add(permission)
     client = Client()
     client.force_login(user)
     context.add_cookies([{"name": "sessionid", "value": client.cookies["sessionid"].value, "url": live_server.url}])

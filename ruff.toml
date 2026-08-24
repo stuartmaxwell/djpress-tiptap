@@ -16,6 +16,8 @@ ignore = [
   "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
   # "ANN002",  # missing-type-args
   # "ANN003",  # missing-type-kwargs
+  "CPY001", # Missing copyright notice at top of file
+
 ]
 
 [lint.per-file-ignores]

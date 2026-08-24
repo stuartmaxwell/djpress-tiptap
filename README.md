@@ -55,8 +55,8 @@ font sizes, don't bleed in). Note the admin's dark theme is not yet supported: t
 
 ## Content renderer
 
-The editor stores Markdown in `Post.content`, matching DJ Press's standard beahviour. Features that Markdown cannot
-represent losslessly use embedded HTML: videos, resized images, resized/complex tables and underline.
+The editor stores Markdown in `Post.content`, matching DJ Press's standard behaviour. Features that Markdown cannot
+represent losslessly use embedded HTML: videos, resized images, resized/complex tables, underline and strikethrough.
 
 Use DJ Press's default content renderer and enable the extensions needed by the corresponding editor toolbar features:
 
@@ -65,6 +65,10 @@ DJPRESS_SETTINGS = {
     "MARKDOWN_EXTENSIONS": ["fenced_code", "tables"],
 }
 ```
+
+When DJ Press's default renderer is active, the `djpress_tiptap.W002` system check warns if its effective configuration
+cannot render fenced code blocks or tables. Equivalent extension bundles such as `extra` are detected by capability,
+not by name.
 
 ## Upgrading from djpress-tiptap 0.2.x
 

@@ -4,7 +4,7 @@ default:
 
 # Create and/or update the lockfile with the latest packages. Note that the "--exclude-newer 7d" option will be added when released.
 lock:
-  pdm lock
+  pdm lock --exclude-newer 7d
 
 # Install/sync packages in the virtual environment
 sync:

@@ -1,4 +1,5 @@
 {% extends "website/base.html" %}
+{% load djpress_tags %}
 {% block title %}
   {% if post %}Edit Post &ldquo;{{ post.title }}&rdquo;{% else %}Add New Post{% endif %}
 {% endblock %}

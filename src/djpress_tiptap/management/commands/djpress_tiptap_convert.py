@@ -1,4 +1,6 @@
-"""One-time, in-place conversion of stored Markdown post content to HTML.
+"""Legacy in-place conversion of stored Markdown post content to HTML.
+
+Note: this will be removed in a future version.
 
 For a site switching to the Tiptap editor: each post's Markdown is rendered
 with the site's configured Markdown renderer — so the resulting HTML is

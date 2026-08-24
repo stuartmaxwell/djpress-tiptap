@@ -8,6 +8,36 @@
 // multi-source markup, which keeps its <source> children (see parseHTML).
 import { Node, mergeAttributes } from "@tiptap/core";
 
+function escapeAttribute(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function attribute(name, value) {
+  return value == null || value === ""
+    ? ""
+    : ` ${name}="${escapeAttribute(value)}"`;
+}
+
+function videoAttributes(element) {
+  const title = element.getAttribute("title");
+  const src = element.getAttribute("src");
+  if (src) return { src, title };
+
+  const sources = Array.from(element.querySelectorAll("source"))
+    .filter((source) => source.getAttribute("src"))
+    .map((source) => ({
+      src: source.getAttribute("src"),
+      type: source.getAttribute("type"),
+    }));
+
+  if (sources.length < 2) return { src: sources[0]?.src, title };
+  return { sources, title };
+}
+
 export const Video = Node.create({
   name: "video",
   group: "block",
@@ -28,27 +58,7 @@ export const Video = Node.create({
     return [
       {
         tag: "video",
-        getAttrs: (element) => {
-          const title = element.getAttribute("title");
-
-          // Browsers ignore <source> children when the src attribute is
-          // present, so nothing observable is lost by dropping them here.
-          const src = element.getAttribute("src");
-          if (src) return { src, title };
-
-          const sources = Array.from(element.querySelectorAll("source"))
-            .filter((source) => source.getAttribute("src"))
-            .map((source) => ({
-              src: source.getAttribute("src"),
-              type: source.getAttribute("type"),
-            }));
-
-          // A lone <source> offers the browser no choice, so it collapses
-          // into the canonical attribute form. Two or more are the format
-          // fallback (e.g. webm + mp4) and must survive verbatim, in order.
-          if (sources.length < 2) return { src: sources[0]?.src, title };
-          return { sources, title };
-        },
+        getAttrs: videoAttributes,
       },
     ];
   },
@@ -72,6 +82,48 @@ export const Video = Node.create({
       ];
     }
     return ["video", attributes];
+  },
+
+  markdownTokenName: "video",
+
+  parseMarkdown(token, helpers) {
+    const template = document.createElement("template");
+    template.innerHTML = token.raw.trim();
+    const element = template.content.querySelector("video");
+    return element
+      ? helpers.createNode("video", videoAttributes(element))
+      : null;
+  },
+
+  // HTML is Markdown's portable escape hatch for media it cannot express.
+  // Keeping it explicit also preserves ordered <source> fallbacks.
+  renderMarkdown(node) {
+    const attrs = node.attrs ?? {};
+    const sources = attrs.sources?.length
+      ? attrs.sources
+          .map(
+            ({ src, type }) =>
+              `<source${attribute("src", src)}${attribute("type", type)}>`,
+          )
+          .join("")
+      : "";
+    return `<video${attribute("src", attrs.src)}${attribute("title", attrs.title)} controls="controls" preload="metadata">${sources}</video>`;
+  },
+
+  // <video> is not one of Marked's block HTML tags, so without this tokenizer
+  // it is wrapped in a paragraph and cannot become our block atom node.
+  markdownTokenizer: {
+    name: "video",
+    level: "block",
+    start(src) {
+      return src.search(/<video(?:\s|>)/i);
+    },
+    tokenize(src) {
+      const match =
+        /^<video(?:\s[^>]*)?>[\s\S]*?<\/video>[\t ]*(?:\r?\n|$)/i.exec(src);
+      if (!match) return undefined;
+      return { type: "video", raw: match[0], text: match[0] };
+    },
   },
 
   addCommands() {

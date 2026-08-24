@@ -9,6 +9,7 @@ module can be imported during app loading before settings are configured.
 """
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.shortcuts import resolve_url
 
 # Pillow format name -> mime type. Keys validate what Pillow detected in the
@@ -39,9 +40,30 @@ DEFAULT_MAX_UPLOAD_SIZE_MB = 10
 # Videos get their own, larger cap: even a short clip dwarfs any photo.
 DEFAULT_MAX_VIDEO_UPLOAD_SIZE_MB = 100
 
+# From version 0.3, Markdown is the package's primary format. "html" exists only as a compatibility bridge for sites
+# upgrading from djpress-tiptap 0.2 and needing to keep the existing HTML content in place. This will be removed in a
+# future version.
+DEFAULT_STORAGE_FORMAT = "markdown"
+STORAGE_FORMATS = {"markdown", "html"}
+
 # DJ Press Tiptap views to upload media
 DJPRESS_TIPTAP_UPLOAD_URL = "djpress_tiptap:media_upload"
 DJPRESS_TIPTAP_BROWSE_URL = "djpress_tiptap:media_browse"
+
+
+def storage_format() -> str:
+    """Format the editor reads from and writes to ``Post.content``.
+
+    Markdown is portable and works with DJ Press's default renderer. HTML is
+    retained as an explicit legacy mode while existing sites migrate; format
+    auto-detection is deliberately avoided because Markdown may contain HTML.
+    """
+    value = getattr(settings, "DJPRESS_TIPTAP_STORAGE_FORMAT", DEFAULT_STORAGE_FORMAT)
+    if value not in STORAGE_FORMATS:
+        choices = ", ".join(sorted(STORAGE_FORMATS))
+        msg = f"DJPRESS_TIPTAP_STORAGE_FORMAT must be one of: {choices}."
+        raise ImproperlyConfigured(msg)
+    return value
 
 
 def max_upload_size_mb() -> int:

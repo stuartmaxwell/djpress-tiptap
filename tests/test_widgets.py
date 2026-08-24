@@ -25,6 +25,7 @@ def test_default_configuration_renders_buttons_for_the_bundled_views():
     assert VIDEO_UPLOAD_BUTTON in html
     assert 'data-upload-url="/media/upload/"' in html
     assert 'data-browse-url="/media/browse/"' in html
+    assert 'data-storage-format="markdown"' in html
 
 
 def test_configured_url_names_are_resolved(settings):
@@ -73,3 +74,22 @@ def test_widget_arguments_override_settings(settings):
     assert BROWSE_BUTTON in html
     assert 'data-upload-url="/widget/upload/"' in html
     assert 'data-browse-url="/widget/browse/"' in html
+
+
+def test_legacy_html_storage_format_is_forwarded(settings):
+    settings.DJPRESS_TIPTAP_STORAGE_FORMAT = "html"
+    html = DjTiptapWidget().render("body", "<p>Legacy</p>")
+    assert 'data-storage-format="html"' in html
+
+
+def test_markdown_submission_normalizes_form_line_endings():
+    widget = DjTiptapWidget()
+    value = widget.value_from_datadict({"body": "first\r\nsecond\rthird"}, {}, "body")
+    assert value == "first\nsecond\nthird"
+
+
+def test_legacy_html_submission_preserves_line_endings(settings):
+    settings.DJPRESS_TIPTAP_STORAGE_FORMAT = "html"
+    widget = DjTiptapWidget()
+    value = widget.value_from_datadict({"body": "<p>first\r\nsecond</p>"}, {}, "body")
+    assert value == "<p>first\r\nsecond</p>"

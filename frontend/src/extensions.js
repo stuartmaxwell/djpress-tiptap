@@ -1,10 +1,20 @@
 // Extension list and configuration
 //
+import { Extension, generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
 import Image from "@tiptap/extension-image";
-import { TableKit } from "@tiptap/extension-table";
+import Strike from "@tiptap/extension-strike";
+import {
+  Table,
+  TableCell,
+  TableHeader,
+  TableRow,
+  renderTableToMarkdown,
+} from "@tiptap/extension-table";
+import Underline from "@tiptap/extension-underline";
+import { Markdown } from "@tiptap/markdown";
 import { Placeholder } from "@tiptap/extensions";
 import { Typography } from "@tiptap/extension-typography";
 import { More } from "./more.js";
@@ -15,7 +25,98 @@ import { Video } from "./video.js";
 // common proves too heavy.
 const lowlight = createLowlight(common);
 
-export const extensions = [
+function escapeAttribute(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+const PortableImage = Image.extend({
+  renderMarkdown(node) {
+    const attrs = node.attrs ?? {};
+    if (attrs.width || attrs.height) {
+      const attributes = ["src", "alt", "title", "width", "height"]
+        .filter((name) => attrs[name] != null && attrs[name] !== "")
+        .map((name) => ` ${name}="${escapeAttribute(attrs[name])}"`)
+        .join("");
+      return `<img${attributes}>`;
+    }
+
+    const src = attrs.src ?? "";
+    const alt = attrs.alt ?? "";
+    const title = attrs.title ? ` "${attrs.title}"` : "";
+    return `![${alt}](${src}${title})`;
+  },
+});
+
+// The Markdown manager's generic HTML fallback currently loses non-standard
+// image attributes. Intercept raw <img> tokens so the width/height escape
+// hatch used above is genuinely bidirectional.
+const SizedImageMarkdown = Extension.create({
+  name: "sizedImageMarkdown",
+  markdownTokenName: "html",
+  parseMarkdown(token, helpers) {
+    if (!/^\s*<img(?:\s|>)/i.test(token.raw ?? "")) return null;
+
+    const template = document.createElement("template");
+    template.innerHTML = token.raw.trim();
+    const image = template.content.querySelector("img");
+    if (!image) return null;
+
+    const attrs = Object.fromEntries(
+      ["src", "alt", "title", "width", "height"]
+        .map((name) => [name, image.getAttribute(name)])
+        .filter(([, value]) => value != null),
+    );
+    return helpers.createNode("image", attrs);
+  },
+});
+
+// Tiptap's stock underline Markdown syntax is ++text++. Raw <u> is more
+// portable to other Markdown implementations, while its inherited tokenizer
+// still accepts ++text++ when loading older Markdown.
+const PortableUnderline = Underline.extend({
+  renderMarkdown(node, helpers) {
+    return `<u>${helpers.renderChildren(node)}</u>`;
+  },
+});
+
+// Strikethrough is not part of core Markdown, and DJ Press's default Python
+// Markdown renderer leaves ~~text~~ untouched. Inline <del> works without an
+// extra renderer dependency, while the inherited tokenizer still accepts
+// existing ~~text~~ content.
+const PortableStrike = Strike.extend({
+  renderMarkdown(node, helpers) {
+    return `<del>${helpers.renderChildren(node)}</del>`;
+  },
+});
+
+function tableNeedsHTML(node) {
+  return (node.content ?? []).some((row) =>
+    (row.content ?? []).some((cell) => {
+      const attrs = cell.attrs ?? {};
+      return (
+        attrs.colwidth?.some(Boolean) ||
+        attrs.colspan > 1 ||
+        attrs.rowspan > 1 ||
+        cell.content?.length !== 1 ||
+        cell.content?.[0]?.type !== "paragraph"
+      );
+    }),
+  );
+}
+
+const PortableTable = Table.extend({
+  renderMarkdown(node, helpers) {
+    if (!tableNeedsHTML(node)) return renderTableToMarkdown(node, helpers);
+
+    return generateHTML({ type: "doc", content: [node] }, htmlExtensions);
+  },
+});
+
+const htmlExtensions = [
   StarterKit.configure({
     // Clicking a link inside the editor should select it for editing,
     // not navigate away from the form (openOnClick defaults to true).
@@ -24,6 +125,12 @@ export const extensions = [
     // Disable the built-in code block: CodeBlockLowlight below replaces it,
     // and both register under the same extension name ("codeBlock").
     codeBlock: false,
+    // Replaced below so Markdown saves portable <u> markup rather than the
+    // Tiptap-specific ++text++ extension syntax.
+    underline: false,
+    // Replaced below so strikethrough works with DJ Press's default Markdown
+    // renderer instead of requiring a third-party ~~text~~ extension.
+    strike: false,
   }),
   CodeBlockLowlight.configure({
     lowlight,
@@ -32,7 +139,7 @@ export const extensions = [
   // (styled in editor.css) and stores the result as width/height attributes
   // on the <img>. Aspect ratio is always kept: free-form distortion is never
   // what you want for a photo.
-  Image.configure({
+  PortableImage.configure({
     resize: {
       enabled: true,
       alwaysPreserveAspectRatio: true,
@@ -40,11 +147,13 @@ export const extensions = [
       minHeight: 50,
     },
   }),
-  // Bundles the Table, TableRow, TableHeader, and TableCell nodes; configure
-  // each via its key (e.g. { table: { resizable: true } }), StarterKit-style.
-  TableKit.configure({
-    table: { resizable: true },
-  }),
+  SizedImageMarkdown,
+  PortableTable.configure({ resizable: true }),
+  TableRow,
+  TableHeader,
+  TableCell,
+  PortableUnderline,
+  PortableStrike,
   // Renders as a data-placeholder attribute + is-editor-empty class on the
   // first paragraph while the document is empty; styled in editor.css.
   Placeholder.configure({
@@ -59,4 +168,9 @@ export const extensions = [
   More,
   // Self-hosted HTML5 <video> for uploaded clips; see video.js.
   Video,
+];
+
+export const extensions = [
+  ...htmlExtensions,
+  Markdown.configure({ markedOptions: { gfm: true } }),
 ];

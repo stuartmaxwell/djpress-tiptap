@@ -1,5 +1,5 @@
 {% extends "website/base.html" %}
-{% load static %}
+{% load static djpress_tags %}
 
 {% block content %}
   {% if post %}
@@ -7,14 +7,12 @@
     <link rel="stylesheet" href="{% static 'djpress_tiptap/content.css' %}">
     <script src="{% static 'djpress_tiptap/content.bundle.js' %}" defer></script>
 
-    <h1>{{ post.title }}</h1>
+    {% post_title outer_tag="h1" %}
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px">
       <div>
-        <div class="post-content">{{ post.content | safe }}</div>
+        <div class="post-content">{{ post.rendered_content | safe }}</div>
       </div>
-      <div style="font-family: monospace; background-color: #f0f0f0; padding: 20px; border: 1px solid #ccc">
-        {{ post.content }}
-      </div>
+      <pre style="font-family: monospace; background-color: #f0f0f0; padding: 20px; border: 1px solid #ccc">{{ post.content }}</pre>
     </div>
     <p><a href="{% url 'website:post_edit' post.pk %}">edit</a></p>
   {% endif %}

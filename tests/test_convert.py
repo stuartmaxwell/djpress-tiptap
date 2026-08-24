@@ -136,9 +136,10 @@ def test_tags_outside_the_editor_schema_are_reported(author):
     assert "drop" in out
 
 
-def test_refuses_to_run_against_the_html_renderer(author):
-    # The example settings configure the pass-through renderer, so with no
-    # override the command must refuse rather than silently convert nothing.
+def test_refuses_to_run_against_the_html_renderer(author, settings):
+    settings.DJPRESS_SETTINGS = {"CONTENT_RENDERER": "djpress_tiptap.renderers.html_renderer"}
+    # A site still configured with the legacy pass-through renderer must be
+    # protected from a no-op Markdown-to-HTML conversion.
     make_post(author, "# Hello")
 
     with pytest.raises(CommandError, match="html_renderer"):

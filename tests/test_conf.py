@@ -11,10 +11,98 @@ The example project deliberately sets no DJPRESS_TIPTAP_* settings, so the
 """
 
 import pytest
+from django.core.checks import run_checks
+from django.core.exceptions import ImproperlyConfigured
 
 from djpress_tiptap import conf
+from djpress_tiptap.checks import (
+    LEGACY_HTML_RENDERER,
+    LEGACY_HTML_STORAGE_WARNING,
+    MARKDOWN_CAPABILITIES_WARNING,
+    MARKDOWN_WITH_HTML_RENDERER_ERROR,
+)
 
 pytestmark = pytest.mark.urls("config.urls")
+
+
+class TestStorageFormat:
+    def test_default_is_markdown(self):
+        assert conf.storage_format() == "markdown"
+
+    def test_legacy_html_can_be_selected_explicitly(self, settings):
+        settings.DJPRESS_TIPTAP_STORAGE_FORMAT = "html"
+        assert conf.storage_format() == "html"
+
+    def test_unknown_format_is_rejected(self, settings):
+        settings.DJPRESS_TIPTAP_STORAGE_FORMAT = "json"
+        with pytest.raises(ImproperlyConfigured, match="must be one of"):
+            conf.storage_format()
+
+    def test_default_does_not_produce_a_system_check_warning(self):
+        assert all(message.id != LEGACY_HTML_STORAGE_WARNING for message in run_checks())
+
+    def test_legacy_html_produces_a_deprecation_warning(self, settings):
+        settings.DJPRESS_TIPTAP_STORAGE_FORMAT = "html"
+        warning = next(message for message in run_checks() if message.id == LEGACY_HTML_STORAGE_WARNING)
+        assert "deprecated HTML storage" in warning.msg
+        assert "djpress_tiptap_convert_to_markdown" in warning.hint
+        assert "remove DJPRESS_TIPTAP_STORAGE_FORMAT" in warning.hint
+
+    def test_default_markdown_rejects_the_legacy_html_renderer(self, settings):
+        settings.DJPRESS_SETTINGS = {"CONTENT_RENDERER": LEGACY_HTML_RENDERER}
+        error = next(message for message in run_checks() if message.id == MARKDOWN_WITH_HTML_RENDERER_ERROR)
+        assert "cannot render Markdown content" in error.msg
+        assert "Remove the CONTENT_RENDERER" in error.hint
+
+    def test_explicit_markdown_rejects_the_legacy_html_renderer(self, settings):
+        settings.DJPRESS_TIPTAP_STORAGE_FORMAT = "markdown"
+        settings.DJPRESS_SETTINGS = {"CONTENT_RENDERER": LEGACY_HTML_RENDERER}
+        assert any(message.id == MARKDOWN_WITH_HTML_RENDERER_ERROR for message in run_checks())
+
+    def test_legacy_renderer_is_allowed_while_html_storage_is_enabled(self, settings):
+        settings.DJPRESS_TIPTAP_STORAGE_FORMAT = "html"
+        settings.DJPRESS_SETTINGS = {"CONTENT_RENDERER": LEGACY_HTML_RENDERER}
+        assert all(message.id != MARKDOWN_WITH_HTML_RENDERER_ERROR for message in run_checks())
+
+
+class TestMarkdownCapabilities:
+    def warning(self):
+        return next(message for message in run_checks() if message.id == MARKDOWN_CAPABILITIES_WARNING)
+
+    def test_default_example_configuration_has_required_capabilities(self):
+        assert all(message.id != MARKDOWN_CAPABILITIES_WARNING for message in run_checks())
+
+    def test_missing_both_extensions_reports_both_features(self, settings):
+        settings.DJPRESS_SETTINGS = {"MARKDOWN_EXTENSIONS": []}
+        warning = self.warning()
+        assert "fenced code blocks, tables" in warning.msg
+        assert "fenced_code" in warning.hint
+        assert "tables" in warning.hint
+
+    def test_missing_fenced_code_is_reported(self, settings):
+        settings.DJPRESS_SETTINGS = {"MARKDOWN_EXTENSIONS": ["tables"]}
+        warning = self.warning()
+        assert "fenced code blocks" in warning.msg
+        assert "tables" not in warning.msg
+
+    def test_missing_tables_is_reported(self, settings):
+        settings.DJPRESS_SETTINGS = {"MARKDOWN_EXTENSIONS": ["fenced_code"]}
+        warning = self.warning()
+        assert "tables" in warning.msg
+        assert "fenced code blocks" not in warning.msg
+
+    def test_extra_satisfies_both_capabilities(self, settings):
+        settings.DJPRESS_SETTINGS = {"MARKDOWN_EXTENSIONS": ["extra"]}
+        assert all(message.id != MARKDOWN_CAPABILITIES_WARNING for message in run_checks())
+
+    def test_custom_renderer_is_not_probed(self, settings):
+        settings.DJPRESS_SETTINGS = {"CONTENT_RENDERER": "example.custom_renderer"}
+        assert all(message.id != MARKDOWN_CAPABILITIES_WARNING for message in run_checks())
+
+    def test_html_storage_is_not_probed(self, settings):
+        settings.DJPRESS_TIPTAP_STORAGE_FORMAT = "html"
+        settings.DJPRESS_SETTINGS = {"MARKDOWN_EXTENSIONS": []}
+        assert all(message.id != MARKDOWN_CAPABILITIES_WARNING for message in run_checks())
 
 
 class TestMaxUploadSizeMb:

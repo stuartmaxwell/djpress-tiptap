@@ -5,6 +5,13 @@ Opinionated TipTap editor implementation for Django sites.
 Docs are still a work in progress.
 See the example app for usage.
 
+Each code block has a language dropdown in the editor. Use it to inspect, set,
+change or clear the language saved beside the Markdown fence. Unspecified blocks
+use automatic syntax highlighting without adding a language to the saved Markdown.
+The dropdown lists the bundled highlighting languages and preserves existing
+language aliases or custom fence labels. It appears only in the editor, not in
+saved content or on public pages.
+
 ## Settings
 
 All settings are optional; the package works with sensible defaults. Upload

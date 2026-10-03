@@ -254,6 +254,61 @@ def test_published_code_blocks_are_highlighted_on_the_public_post_page(page):
     expect(code.locator(".hljs-string").first).to_have_text('"hello"')
 
 
+def test_code_block_language_can_be_set_changed_and_cleared(page):
+    title = f"pw-test code language {time.time_ns()}"
+    page.goto("/add/")
+    page.fill("input[name=title]", title)
+    page.locator("djpress-tiptap-editor .tiptap").click()
+    page.keyboard.type("``` ")
+    page.keyboard.type('print("Hello, world")')
+
+    language = page.get_by_role("combobox", name="Code block language")
+    expect(language).to_have_value("")
+    language.select_option("python")
+    assert editor_markdown(page).strip() == '```python\nprint("Hello, world")\n```'
+    expect(page.locator(".tiptap pre .hljs-built_in").first).to_have_text("print")
+
+    # Undo/redo must update the visible selector as well as the document.
+    page.get_by_role("button", name="Undo", exact=True).click()
+    expect(language).to_have_value("")
+    page.get_by_role("button", name="Redo", exact=True).click()
+    expect(language).to_have_value("python")
+
+    language.select_option("javascript")
+    assert editor_markdown(page).startswith("```javascript\n")
+    language.select_option("")
+    assert editor_markdown(page).strip() == '```\nprint("Hello, world")\n```'
+    language.select_option("python")
+    # The code remains editable after interacting with the dropdown.
+    page.locator(".tiptap pre code").click()
+    page.keyboard.press("End")
+    page.keyboard.type(" # edited")
+    page.click("input[type=submit]")
+    page.wait_for_url("/")
+    post = Post.objects.get(title=title)
+    assert post.content == '```python\nprint("Hello, world") # edited\n```'
+    page.goto(f"/{post.pk}/edit/")
+    expect(page.get_by_role("combobox", name="Code block language")).to_have_value("python")
+    assert "select" not in editor_html(page)
+
+
+def test_code_block_dropdown_targets_its_own_block_and_preserves_fence_labels(page):
+    page.goto("/add/")
+    page.evaluate("""() => document.querySelector('djpress-tiptap-editor').editor.commands.setContent(
+        '```js\\nconst first = 1;\\n```\\n\\n```custom-language\\nsecond\\n```',
+        { contentType: 'markdown' }
+    )""")
+    languages = page.get_by_role("combobox", name="Code block language")
+    expect(languages).to_have_count(2)
+    expect(languages.nth(0)).to_have_value("js")
+    expect(languages.nth(1)).to_have_value("custom-language")
+    # Leave the caret in the first block, then change the second block.
+    page.locator(".tiptap pre code").first.click()
+    languages.nth(1).select_option("python")
+    assert editor_markdown(page).strip() == "```js\nconst first = 1;\n```\n\n```python\nsecond\n```"
+    expect(languages.nth(0)).to_have_value("js")
+
+
 def test_image_command_inserts_an_image_from_the_prompted_url(page):
     # 1x1 transparent gif: keeps the test off the network entirely
     src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"

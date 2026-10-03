@@ -18,6 +18,10 @@ frontend-install:
 frontend-build:
     cd frontend && pnpm run build && pnpm run build-content
 
+# Check for updates for the frontend dependencies
+frontend-check-updates:
+    pnpm --dir frontend outdated
+
 # Update and re-build bundles after updating package versions
 frontend-post-update:
     cd frontend && pnpm install && pnpm dedupe && pnpm run build && pnpm run build-content && cd .. && pdm run pytest

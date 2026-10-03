@@ -2,7 +2,7 @@
 //
 import { Extension, generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { CodeBlockWithLanguage } from "./code-block.js";
 import { common, createLowlight } from "lowlight";
 import Image from "@tiptap/extension-image";
 import Strike from "@tiptap/extension-strike";
@@ -132,7 +132,7 @@ const htmlExtensions = [
     // renderer instead of requiring a third-party ~~text~~ extension.
     strike: false,
   }),
-  CodeBlockLowlight.configure({
+  CodeBlockWithLanguage.configure({
     lowlight,
   }),
   // resize wraps each image in a node view with draggable corner handles

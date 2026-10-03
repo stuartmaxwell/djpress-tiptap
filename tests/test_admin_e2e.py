@@ -76,6 +76,24 @@ def test_a_post_written_in_the_admin_stores_markdown(page):
     assert post.content == "**Written in the admin**"
 
 
+def test_admin_code_block_language_selector_saves_markdown(page, admin_browser):
+    post = Post.objects.create(
+        title=f"pw-admin code language {time.time_ns()}",
+        content='```js\nconst greeting = "hello";\n```',
+        author=admin_browser,
+        status="published",
+    )
+    page.goto(f"/admin/djpress/post/{post.pk}/change/")
+    language = page.get_by_role("combobox", name="Code block language")
+    expect(language).to_be_visible()
+    expect(language).to_have_value("js")
+    language.select_option("javascript")
+    page.click("input[name=_save]")
+    page.wait_for_url("/admin/djpress/post/")
+    post.refresh_from_db()
+    assert post.content == '```javascript\nconst greeting = "hello";\n```'
+
+
 def test_admin_change_page_round_trips_a_multi_source_video(page, admin_browser):
     # The multi-source markup from test_editor_e2e must survive the admin's
     # edit form the same way it survives the example site's own form.

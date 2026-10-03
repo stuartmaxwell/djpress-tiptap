@@ -189,6 +189,52 @@ djpress-tiptap-editor {
   letter-spacing: normal;
 }
 
+/* ---- Code block language controls ------------------------------------- */
+
+.tiptap .djpress-tiptap-code-block {
+  margin: 0.75rem 0;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f6f8fa;
+}
+.tiptap .djpress-tiptap-code-header {
+  padding: 0.375rem 0.75rem;
+  border-bottom: 1px solid #d0d7de;
+}
+.tiptap .djpress-tiptap-code-header label {
+  display: inline-flex;
+  float: none;
+  width: auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0;
+  color: #59636e;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: normal;
+  line-height: 1.5;
+}
+.tiptap .djpress-tiptap-code-header select {
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #cbd0d6;
+  border-radius: 4px;
+  background: #fff;
+  color: #1f2328;
+  font: inherit;
+}
+.tiptap .djpress-tiptap-code-header select:focus-visible {
+  outline: 2px solid #4a90d9;
+  outline-offset: 1px;
+}
+.tiptap.tiptap .djpress-tiptap-code-block pre {
+  margin: 0;
+  border-radius: 0;
+}
+
 /* ---- The editing surface ---------------------------------------------- */
 
 .tiptap {

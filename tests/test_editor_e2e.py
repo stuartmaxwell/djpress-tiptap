@@ -494,10 +494,11 @@ def open_existing_post_in_editor(page, django_user_model, content):
     # the ProseMirror div without its tiptap class — both would mask the real
     # assertion failures below with a timeout here.
     expect(page.locator("djpress-tiptap-editor video")).to_have_count(1)
+    return post
 
 
 def test_existing_video_with_a_single_source_child_collapses_to_the_src_attribute_form(page, django_user_model):
-    open_existing_post_in_editor(
+    post = open_existing_post_in_editor(
         page,
         django_user_model,
         """<video controls width="100%">
@@ -507,13 +508,27 @@ def test_existing_video_with_a_single_source_child_collapses_to_the_src_attribut
 
     expect(page.locator(".tiptap video")).to_have_attribute("src", "/media/2026/07/18/example_video.webm")
 
-    assert editor_html(page) == (
-        '<video src="/media/2026/07/18/example_video.webm" controls="controls" preload="metadata"></video><p></p>'
-    )
+    # Initial content no longer gets a trailing paragraph before the first
+    # editor transaction. Assert the video contract rather than that side effect.
+    expected = '<video src="/media/2026/07/18/example_video.webm" controls="controls" preload="metadata"></video>'
+    assert editor_html(page) == expected
+    page.click("input[type=submit]")
+    page.wait_for_url("/")
+    post.refresh_from_db()
+    assert post.content == expected
+
+    # The trailing paragraph is still available once editing begins, so an
+    # existing post ending in video can be extended normally.
+    page.goto(f"/{post.pk}/edit/")
+    page.evaluate("""() => document.querySelector('djpress-tiptap-editor').editor
+        .chain().focus().setNodeSelection(0).run()""")
+    page.locator(".tiptap p").click()
+    page.keyboard.type("After the video")
+    expect(page.locator(".tiptap p")).to_have_text("After the video")
 
 
 def test_existing_video_with_multiple_source_children_keeps_every_source(page, django_user_model):
-    open_existing_post_in_editor(
+    post = open_existing_post_in_editor(
         page,
         django_user_model,
         """<video controls width="100%">
@@ -531,12 +546,17 @@ def test_existing_video_with_multiple_source_children_keeps_every_source(page, d
     expect(sources.nth(1)).to_have_attribute("src", "/media/2026/07/18/example_video.mp4")
     expect(sources.nth(1)).to_have_attribute("type", "video/mp4")
 
-    assert editor_html(page) == (
+    expected = (
         '<video controls="controls" preload="metadata">'
         '<source src="/media/2026/07/18/example_video.webm" type="video/webm">'
         '<source src="/media/2026/07/18/example_video.mp4" type="video/mp4">'
-        "</video><p></p>"
+        "</video>"
     )
+    assert editor_html(page) == expected
+    page.click("input[type=submit]")
+    page.wait_for_url("/")
+    post.refresh_from_db()
+    assert post.content == expected
 
 
 def test_dragging_a_corner_handle_resizes_the_image_and_stores_width_height(page):

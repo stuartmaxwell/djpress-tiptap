@@ -18,6 +18,10 @@ frontend-install:
 frontend-build:
     cd frontend && pnpm run build && pnpm run build-content
 
+# Update and re-build bundles after updating package versions
+frontend-post-update:
+    cd frontend && pnpm install && pnpm dedupe && pnpm run build && pnpm run build-content && cd .. && pdm run pytest
+
 # Install Playwright browser binaries needed for the e2e tests
 playwright-install:
     pdm run playwright install

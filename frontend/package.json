@@ -9,7 +9,7 @@
     "build-content": "vite build -c vite.content.config.js"
   },
   "dependencies": {
-    "@tabler/icons": "^3.44.0",
+    "@tabler/icons": "3.48.0",
     "@tiptap/core": "3.31.4",
     "@tiptap/extension-code-block-lowlight": "3.31.4",
     "@tiptap/extension-file-handler": "3.31.4",

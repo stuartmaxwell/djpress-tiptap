@@ -1,6 +1,6 @@
 # DJ Press Tiptap
 
-Opinionated TipTap editor implementation for DJ Press sites.
+Opinionated [TipTap](https://tiptap.dev/) editor implementation for DJ Press sites.
 
 Docs are still a work in progress, see the example app for usage.
 

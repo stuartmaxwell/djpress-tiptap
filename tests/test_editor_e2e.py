@@ -86,6 +86,111 @@ def upload_fixture(page, filename):
     chooser_info.value.set_files(FIXTURES / filename)
 
 
+def paste_text(page, text, html=""):
+    """Exercise the real paste handler with text/HTML clipboard payloads."""
+    page.locator(".tiptap").evaluate(
+        """(element, data) => {
+            const clipboardData = new DataTransfer();
+            clipboardData.setData('text/plain', data.text);
+            if (data.html) clipboardData.setData('text/html', data.html);
+            element.dispatchEvent(new ClipboardEvent('paste', {
+                clipboardData, bubbles: true, cancelable: true,
+            }));
+        }""",
+        {"text": text, "html": html},
+    )
+
+
+def test_pasted_markdown_document_round_trips_through_save_and_reopen(page):
+    title = f"pw-markdown paste {time.time_ns()}"
+    markdown = (
+        '# Pasted document\n\n'
+        'A **bold** word and [a link](https://example.com).\n\n'
+        '- First\n- Second\n\n'
+        '```python\nprint("Hello, world")\n```\n\n'
+        '| Name | Value |\n| --- | --- |\n| One | Two |\n\n'
+        '<!--more-->\n\nThe rest.'
+    )
+    page.goto("/add/")
+    page.fill("input[name=title]", title)
+    page.locator(".tiptap").click()
+    paste_text(page, markdown.replace("\n", "\r\n"))
+    expect(page.locator(".tiptap h1")).to_have_text("Pasted document")
+    expect(page.locator(".tiptap strong")).to_have_text("bold")
+    expect(page.locator(".tiptap li")).to_have_count(2)
+    expect(page.get_by_role("combobox", name="Code block language")).to_have_value("python")
+    expect(page.locator(".tiptap table")).to_have_count(1)
+    expect(page.locator('.tiptap [data-type="more"]')).to_have_count(1)
+    before_save = editor_markdown(page).strip()
+    assert "<!--more-->" in before_save
+    assert '```python\nprint("Hello, world")\n```' in before_save
+    page.click("input[type=submit]")
+    page.wait_for_url("/")
+    post = Post.objects.get(title=title)
+    assert post.content == before_save
+    page.goto(f"/{post.pk}/edit/")
+    assert editor_markdown(page).strip() == before_save
+
+
+def test_markdown_paste_replaces_selection_and_is_one_undo_step(page):
+    page.goto("/add/")
+    page.locator(".tiptap").click()
+    page.keyboard.type("Keep replace tail")
+    page.evaluate("""() => document.querySelector('djpress-tiptap-editor').editor
+        .commands.setTextSelection({ from: 6, to: 13 })""")
+    page.context.grant_permissions(["clipboard-read", "clipboard-write"])
+    page.evaluate("() => navigator.clipboard.writeText('**new**')")
+    page.keyboard.press("ControlOrMeta+v")
+    expect(page.locator(".tiptap strong")).to_have_text("new")
+    assert editor_html(page) == "<p>Keep <strong>new</strong> tail</p>"
+    page.get_by_role("button", name="Undo", exact=True).click()
+    assert editor_html(page) == "<p>Keep replace tail</p>"
+    page.get_by_role("button", name="Redo", exact=True).click()
+    assert editor_html(page) == "<p>Keep <strong>new</strong> tail</p>"
+
+
+@pytest.mark.parametrize("literal", ["Just ordinary text", "An unmatched * and ` character"])
+def test_plain_text_paste_remains_text(page, literal):
+    page.goto("/add/")
+    page.locator(".tiptap").click()
+    paste_text(page, literal)
+    expect(page.locator(".tiptap p")).to_have_text(literal)
+    assert "<strong>" not in editor_html(page)
+
+
+def test_markdown_like_rich_text_keeps_clipboard_html(page):
+    page.goto("/add/")
+    page.locator(".tiptap").click()
+    paste_text(page, "# Literal heading", "<p><em># Literal heading</em></p>")
+    assert editor_html(page) == "<p><em># Literal heading</em></p>"
+
+
+def test_pasted_markdown_inside_code_block_remains_literal(page):
+    page.goto("/add/")
+    page.locator(".tiptap").click()
+    page.keyboard.type("```python ")
+    text = "# Heading\n**bold**\n<!--more-->"
+    paste_text(page, text)
+    expect(page.locator(".tiptap pre code")).to_have_text(text)
+    expect(page.locator('.tiptap [data-type="more"]')).to_have_count(0)
+
+
+def test_shift_paste_bypasses_markdown_and_inline_paste_rules(page):
+    page.goto("/add/")
+    page.locator(".tiptap").click()
+    page.context.grant_permissions(["clipboard-read", "clipboard-write"])
+    page.evaluate("""() => navigator.clipboard.write([new ClipboardItem({
+        'text/plain': new Blob(['# Heading\\n\\n**literal**'], { type: 'text/plain' }),
+        'text/html': new Blob(['<h1>Heading</h1><p><strong>literal</strong></p>'], { type: 'text/html' }),
+    })])""")
+    page.keyboard.press("ControlOrMeta+Shift+v")
+    expect(page.locator(".tiptap h1, .tiptap strong")).to_have_count(0)
+    expect(page.locator(".tiptap")).to_contain_text("**literal**")
+    # Releasing Shift restores automatic conversion for the next paste.
+    paste_text(page, "**formatted**")
+    expect(page.locator(".tiptap strong")).to_have_text("formatted")
+
+
 def test_editor_and_toolbar_mount_on_the_add_post_page(page):
     page.goto("/add/")
 

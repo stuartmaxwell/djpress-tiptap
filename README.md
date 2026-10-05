@@ -1,32 +1,33 @@
-# DJ Tiptap
+# DJ Press Tiptap
 
-Opinionated TipTap editor implementation for Django sites.
+Opinionated [TipTap](https://tiptap.dev/) editor implementation for DJ Press sites.
 
-Docs are still a work in progress.
-See the example app for usage.
+Docs are still a work in progress, see the example app for usage.
 
-Each code block has a language dropdown in the editor. Use it to inspect, set,
-change or clear the language saved beside the Markdown fence. Unspecified blocks
-use automatic syntax highlighting without adding a language to the saved Markdown.
-The dropdown lists the bundled highlighting languages and preserves existing
-language aliases or custom fence labels. It appears only in the editor, not in
-saved content or on public pages.
+## Key Features
+
+- WYSIWYG Markdown editor
+- Supports most Markdown features, including images, videos, tables, etc.
+- Supports the DJ Press "Read more" functionality
+- Supports pasting Markdown content directly in the editor (Shift+paste bypasses the Markdown parsing)
+- Django Admin integration
+- Can also be used in standard forms as a widget
 
 ## Settings
 
-All settings are optional; the package works with sensible defaults. Upload
+All settings are optional, the package works with sensible defaults. Upload
 and browse buttons only appear in the toolbar when the corresponding URL is
 configured.
 
-| Setting                                   | Default                       | Purpose                                                                                              |
-| ----------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `DJPRESS_TIPTAP_UPLOAD_URL`               | unset (uploads disabled)      | URL name or path of the attachment upload endpoint                                                   |
-| `DJPRESS_TIPTAP_BROWSE_URL`               | unset (library disabled)      | URL name or path of the media-library browse endpoint                                                |
-| `DJPRESS_TIPTAP_MAX_UPLOAD_SIZE_MB`       | `10`                          | Maximum image upload size                                                                            |
-| `DJPRESS_TIPTAP_MAX_VIDEO_UPLOAD_SIZE_MB` | `100`                         | Maximum video upload size                                                                            |
-| `DJPRESS_TIPTAP_ALLOWED_IMAGE_TYPES`      | JPEG/PNG/GIF/WebP             | Dict of Pillow format → mime type accepted by the upload view                                        |
-| `DJPRESS_TIPTAP_ALLOWED_VIDEO_TYPES`      | `{"video/mp4", "video/webm"}` | Set of video mime types accepted by the upload view; set to `set()` to disable video uploads         |
-| `DJPRESS_TIPTAP_STORAGE_FORMAT`           | `"markdown"`                  | Canonical content format; deprecated `"html"` mode exists temporarily for sites upgrading from 0.2.x |
+| Setting                                   | Default                       |Purpose                                                                                       |
+|-------------------------------------------|-------------------------------|----------------------------------------------------------------------------------------------|
+| `DJPRESS_TIPTAP_UPLOAD_URL`               | unset (uploads disabled)      | URL name or path of the attachment upload                                                    |
+| `DJPRESS_TIPTAP_BROWSE_URL`               | unset (library disabled)      | URL name or path of the media-library browse endpoint                                        |
+| `DJPRESS_TIPTAP_MAX_UPLOAD_SIZE_MB`       | `10`                          | Maximum image upload size                                                                    |
+| `DJPRESS_TIPTAP_MAX_VIDEO_UPLOAD_SIZE_MB` | `100`                         | Maximum video upload size                                                                    |
+| `DJPRESS_TIPTAP_ALLOWED_IMAGE_TYPES`      | JPEG/PNG/GIF/WebP             | Dict of Pillow format → mime type accepted by the upload view                                |
+| `DJPRESS_TIPTAP_ALLOWED_VIDEO_TYPES`      | `{"video/mp4", "video/webm"}` | Set of video mime types accepted by the upload view; set to `set()` to disable video uploads |
+| `DJPRESS_TIPTAP_STORAGE_FORMAT`           | `"markdown"`                  | Content format; deprecated `"html"` mode exists temporarily for sites upgrading from 0.2.x   |
 
 Images are inserted as `<img>` and validated with Pillow; videos are inserted as HTML5 `<video controls>` elements and
 validated by magic bytes with [puremagic](https://github.com/cdgriffith/puremagic). The upload endpoint lives in the

@@ -19,6 +19,7 @@ import { Placeholder } from "@tiptap/extensions";
 import { Typography } from "@tiptap/extension-typography";
 import { More } from "./more.js";
 import { Video } from "./video.js";
+import { PasteMarkdown } from "./paste-markdown.js";
 
 // The `common` set is ~37 mainstream languages; `all` (~190) triples the
 // bundle. Individual grammars can also be registered one by one if even
@@ -173,4 +174,5 @@ const htmlExtensions = [
 export const extensions = [
   ...htmlExtensions,
   Markdown.configure({ markedOptions: { gfm: true } }),
+  PasteMarkdown,
 ];
